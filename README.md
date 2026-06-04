@@ -1,86 +1,71 @@
-# 重要事务记录 / 闹钟提醒网站（云端同步版）
+# NoteVibe — 我的事项
 
-一个基于 Vue 3 + TDesign + CloudBase 的单页面任务管理应用，支持**云端实时同步**、任务 CRUD、闹钟提醒、浏览器通知、多端协作等功能。
+一个基于 Vue 3 + TDesign 的单页面应用，支持**任务管理、打卡追踪、闹钟提醒**，可纯本地使用或接入 CloudBase 云端同步。
 
-## 核心特性
+## 快速开始
 
-### 云端同步
-- **实时多端同步**: 基于 CloudBase `watch()` 实时监听，一端操作，所有在线端即时更新
-- **共享数据模式**: 所有用户共享同一份数据库，用户A创建的任务用户B立即可见
-- **离线降级**: 云端不可用时自动切换到 localStorage 本地存储，恢复后无缝衔接
-- **同步状态指示**: 页面顶部显示连接状态（已连接/连接中/离线/本地）
+最简单的方式：**直接用浏览器打开 `task-reminder.html`**
+
+```bash
+# 克隆项目
+git clone https://github.com/cwzjason/NoteVibe.git
+cd NoteVibe
+
+# 双击打开或用浏览器打开
+# Windows: start task-reminder.html
+# Mac: open task-reminder.html
+```
+
+打开后即可使用，数据保存在浏览器 localStorage 中（本地模式）。
+
+## 功能一览
 
 ### 任务管理
-- 创建、编辑、删除、完成任务
-- 分类系统：工作/个人/健康/财务/其他
-- 优先级标记：高/中/低三档
+- 创建、编辑、删除任务
+- 分类：工作 / 个人 / 健康 / 财务 / 其他
+- 优先级：高 / 中 / 低
 - 搜索和多维度筛选
+- 完成标记
+
+### 打卡系统
+- **每日打卡**：每天一次（适合跑步、阅读等每日习惯）
+- **计数打卡**：不限次数（适合看100个视频、做100道题等）
+- 圆形水球进度动画展示
+- 日历视图查看/修改任意天的打卡记录
+- +1 / -1 快速操作
 
 ### 闹钟提醒
 - 自定义日期+时间闹钟
 - 倒计时显示
-- 浏览器通知 + 音效提示
-- 所有用户共享闹钟列表
+- 浏览器通知提醒
 
-## 技术架构
+## 启用云端同步（可选）
 
-| 层级 | 技术方案 |
-|------|----------|
-| 前端框架 | Vue 3.5 (Composition API) |
-| UI 组件 | TDesign Vue Next 1.20 |
-| 云数据库 | CloudBase NoSQL (`tasks` + `alarms` 集合) |
-| 实时同步 | CloudBase `watch()` 实时监听 |
-| 认证方式 | 匿名登录 + accessKey 自动会话 |
-| 离线备份 | localStorage 双写保障 |
+默认使用本地存储。如需多设备同步，配置 CloudBase：
 
-## 数据库设计
+1. 在 [CloudBase 控制台](https://console.cloud.tencent.com/tcb) 创建环境
+2. 创建 `tasks` 和 `alarms` 两个 NoSQL 集合
+3. 将集合权限设为 `read: true, write: true`
+4. 修改 `task-reminder.html` 中的 `ENV_ID` 为你的环境 ID
 
-### tasks 集合
-```javascript
-{
-  _id: "auto_generated",
-  title: "任务标题",
-  description: "描述文字",
-  category: "work|personal|health|finance|other",
-  priority: "high|medium|low",
-  dueDate: "2026-05-29",
-  dueTime: "17:00",
-  completed: false,
-  createdAt: 1716988800000,
-  updatedAt: 1716988800000
-}
-```
+## 技术栈
 
-### alarms 集合
-```javascript
-{
-  _id: "auto_generated",
-  label: "闹钟名称",
-  date: "2026-05-29",
-  time: "09:00",
-  dismissed: false,
-  triggered: false
-}
-```
-
-## 部署信息
-
-| 环境 | 地址 |
+| 层级 | 技术 |
 |------|------|
-| **CloudBase 公网访问** | https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/ |
-| **直接访问 task-reminder** | https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html |
-| **环境 ID** | `cwz-d2glf6xtm409cbb3a` |
-| **区域** | ap-shanghai |
-| **数据库控制台** | https://tcb.cloud.tencent.com/dev?envId=cwz-d2glf6xtm409cbb3a#/db/doc |
-| **静态托管控制台** | https://tcb.cloud.tencent.com/dev?envId=cwz-d2glf6xtm409cbb3a#/static-hosting |
+| 前端 | Vue 3.5 (Composition API) |
+| UI | TDesign Vue Next 1.20 (CDN) |
+| 数据库（可选） | CloudBase NoSQL |
+| 离线 | localStorage |
 
-## 多端使用
+## 项目结构
 
-1. 在任意设备/浏览器打开上述地址
-2. 网页自动连接 CloudBase 云端数据库
-3. 任一用户添加的任务/闹钟，其他所有打开的页面会**实时同步更新**
-4. 无需登录注册即可使用（匿名认证）
+```
+NoteVibe/
+├── task-reminder.html    # 主应用（单文件，开箱即用）
+├── cloudfunctions/       # CloudBase 云函数（可选）
+└── task-api-backend/     # 后端 API（可选）
+```
 
-## 项目文件
+## License
 
-- `task-reminder.html` — 完整的单页应用（含 HTML/CSS/JS + CloudBase SDK）
+MIT

@@ -1,0 +1,2287 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的事项</title>
+<!-- TDesign Vue Next -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tdesign-vue-next@1.20.0/dist/tdesign.min.css">
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tdesign-vue-next@1.20.0/dist/tdesign.min.js"></script>
+<!-- CloudBase JS SDK -->
+<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.28.6/cloudbase.full.js"></script>
+<style>
+:root {
+  --primary-blue: #2563EB;
+  --primary-blue-light: #3B82F6;
+  --primary-blue-dark: #1D4ED8;
+  --primary-blue-pale: #EEF2FF;
+  --accent-purple: #7C3AED;
+  --accent-purple-light: #8B5CF6;
+  --accent-purple-pale: #F5F3FF;
+  --surface-white: #FFFFFF;
+  --bg-page: #F8FAFC;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --border-light: #E2E8F0;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -2px rgba(0,0,0,0.04);
+  --shadow-xl: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -4px rgba(0,0,0,0.04);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Global Overrides for TDesign ---- */
+.t-button--variant-base.t-button--theme-primary {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-purple) 100%) !important;
+  border: none !important;
+  font-weight: 500 !important;
+}
+.t-button--variant-base.t-button--theme-primary:hover {
+  box-shadow: 0 8px 24px rgba(124,58,237,0.35) !important;
+  transform: translateY(-1px) !important;
+}
+.t-input:focus, .t-textarea:focus,
+.t-input--focused, .t-textarea--focused {
+  border-color: var(--accent-purple) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important;
+}
+.t-select .t-input--focused {
+  border-color: var(--accent-purple) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important;
+}
+.t-select-option:hover { background-color: var(--primary-blue-pale) !important; }
+/* Popups teleported to body need to float above the dialog (z-index ~2000) */
+body > .t-popup { z-index: 3000 !important; }
+.t-dialog__header { font-weight: 600 !important; font-size: 18px !important; }
+.t-dialog { border-radius: var(--radius-lg) !important; }
+/* dialog mask z-index is managed internally by TDesign — do NOT override */
+.t-tag { font-weight: 500 !important; border-radius: 6px !important; }
+.t-checkbox { flex-shrink: 0; }
+.t-popconfirm__inner { max-width: 240px; }
+
+/* ===== Layout ===== */
+.app-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+/* ===== Header ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--surface-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+  border: 1px solid var(--border-light);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-purple) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.header-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.header-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Sync Status Indicator ===== */
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+.sync-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.sync-status.connected {
+  background: #ECFDF5;
+  color: #059669;
+}
+.sync-status.connected .sync-dot { background: #10B981; }
+.sync-status.connecting {
+  background: #FFFBEB;
+  color: #D97706;
+}
+.sync-status.connecting .sync-dot { background: #F59E0B; }
+.sync-status.offline {
+  background: #FEF2F2;
+  color: #DC2626;
+}
+.sync-status.offline .sync-dot {
+  background: #EF4444;
+  animation: none;
+}
+.sync-status.local {
+  background: #F1F5F9;
+  color: #64748B;
+}
+.sync-status.local .sync-dot {
+  background: #94A3C8;
+  animation: none;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ===== Stats Grid ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--surface-white);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+.stat-card:hover {
+  border-color: var(--primary-blue-pale);
+  box-shadow: var(--shadow-md);
+}
+.stat-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.stat-icon.blue   { background: var(--primary-blue-pale); }
+.stat-icon.purple { background: var(--accent-purple-pale); }
+.stat-icon.green  { background: #ECFDF5; }
+.stat-icon.amber  { background: #FFFBEB; }
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+/* ===== Main Grid ===== */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ===== Panel Cards ===== */
+.panel {
+  background: var(--surface-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+.panel-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.panel-body { padding: 16px 20px; }
+
+/* ===== Toolbar ===== */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.toolbar > * { min-width: 160px; }
+
+/* ===== Task List ===== */
+.task-list { display: flex; flex-direction: column; gap: 10px; }
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-white);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+  cursor: default;
+}
+.task-item:hover {
+  border-color: var(--primary-blue-pale);
+  box-shadow: var(--shadow-sm);
+}
+.task-item.completed { opacity: 0.5; background: #FAFAFA; }
+.task-item.completed .task-title { text-decoration: line-through; }
+.task-item.urgent {
+  border-left: 3px solid var(--danger);
+}
+
+.task-checkbox { flex-shrink: 0; cursor: pointer; }
+.task-priority-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.task-priority-dot.high   { background: var(--danger); }
+.task-priority-dot.medium { background: var(--warning); }
+.task-priority-dot.low    { background: var(--success); }
+
+.task-content { flex: 1; min-width: 0; cursor: pointer; }
+.task-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.task-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-tags { display: flex; gap: 6px; flex-shrink: 0; }
+.task-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* ===== Check-in Water Circle ===== */
+.checkin-task { padding-left: 12px; }
+.checkin-water {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--border-light);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 3px solid var(--primary-blue);
+  transition: all 0.3s ease;
+}
+.checkin-water:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(37,99,235,0.3); }
+.checkin-water.full { border-color: var(--success); }
+.water-fill {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, rgba(37,99,235,0.3) 0%, rgba(37,99,235,0.7) 100%);
+  transition: height 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: 0 0 50% 50%;
+}
+.checkin-water.full .water-fill {
+  background: linear-gradient(180deg, rgba(16,185,129,0.5) 0%, rgba(16,185,129,0.85) 100%);
+}
+.water-fill::after {
+  content: '';
+  position: absolute;
+  top: -6px; left: 0; right: 0; height: 12px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 50%;
+}
+.water-text {
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-primary);
+  z-index: 1;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
+}
+.checkin-tag {
+  background: linear-gradient(135deg, var(--primary-blue-pale) 0%, var(--accent-purple-pale) 100%);
+  color: var(--accent-purple);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* ===== Check-in Calendar ===== */
+.calendar-wrap { text-align: center; }
+.cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; padding: 0 4px;
+}
+.cal-month-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px; margin-bottom: 4px;
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  border-radius: 8px;
+  cursor: pointer; position: relative;
+  font-size: 13px; color: var(--text-primary);
+  transition: background 0.15s;
+  user-select: none;
+}
+.cal-day:hover { background: var(--primary-blue-pale); }
+.cal-day.cal-other-month { color: var(--text-muted); cursor: default; opacity: 0.3; }
+.cal-day.cal-today { font-weight: 700; border: 2px solid var(--primary-blue); }
+.cal-day.cal-checked {
+  background: linear-gradient(135deg, var(--primary-blue-pale) 0%, var(--accent-purple-pale) 100%);
+  color: var(--primary-blue-dark); font-weight: 600;
+}
+.cal-day.cal-checked::after {
+  content: '✓';
+  position: absolute; top: 1px; right: 3px;
+  font-size: 8px; color: var(--success); font-weight: 700;
+}
+.cal-day.cal-checked.cal-today::after { color: var(--primary-blue); }
+.cal-day-num { position: relative; z-index: 1; }
+.cal-day-badge {
+  position: absolute; bottom: 2px; right: 2px;
+  font-size: 9px; font-weight: 700;
+  color: var(--primary-blue);
+  background: rgba(255,255,255,0.8);
+  border-radius: 4px; padding: 0 3px;
+  line-height: 1.3;
+}
+.cal-legend {
+  display: flex; justify-content: center; gap: 16px;
+  margin-top: 12px; font-size: 12px; color: var(--text-muted);
+}
+.cal-dot-leg {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  margin-right: 4px; vertical-align: -1px;
+}
+.cal-dot-leg.checked {
+  background: linear-gradient(135deg, var(--primary-blue-pale) 0%, var(--accent-purple-pale) 100%);
+}
+.cal-dot-leg.today { border: 2px solid var(--primary-blue); background: transparent; }
+.cal-dot-leg.normal { background: var(--border-light); }
+
+/* ===== Sidebar ===== */
+.sidebar .panel { margin-bottom: 16px; }
+
+.alarm-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.alarm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-page);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  border: 1.5px solid transparent;
+}
+.alarm-item:hover { background: var(--primary-blue-pale); }
+.alarm-item.ringing {
+  background: linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%);
+  border-color: var(--danger);
+  animation: alarmPulse 0.8s ease-in-out infinite;
+}
+@keyframes alarmPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50%     { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+.alarm-info { flex: 1; min-width: 0; }
+.alarm-title { font-size: 14px; font-weight: 500; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alarm-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.alarm-countdown {
+  font-size: 11px;
+  color: var(--accent-purple);
+  font-weight: 600;
+  margin-top: 1px;
+}
+.alarm-countdown.soon { color: var(--danger); }
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+.empty-state .empty-text { font-size: 14px; }
+
+/* ===== Category Tags ===== */
+.cat-tag {
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-block;
+}
+.cat-tag.work     { background: #EFF6FF; color: #2563EB; }
+.cat-tag.personal { background: #F5F3FF; color: #7C3AED; }
+.cat-tag.health   { background: #ECFDF5; color: #059669; }
+.cat-tag.finance  { background: #FFFBEB; color: #D97706; }
+.cat-tag.other    { background: #F8FAFC; color: #64748B; }
+
+/* ===== Toast Override ===== */
+.t-message { border-radius: 10px !important; }
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .main-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .toolbar { flex-direction: column; }
+  .toolbar > * { width: 100%; min-width: unset; }
+  .task-item { flex-wrap: wrap; }
+  .task-actions { margin-left: auto; }
+  .stat-card { padding: 14px 16px; }
+  .stat-value { font-size: 22px; }
+  .app-container { padding: 12px 10px 32px; }
+  .panel-header { padding: 14px 18px; }
+  .panel-body { padding: 16px 18px; }
+}
+
+/* ===== Custom Scrollbar ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3C8; }
+
+/* ===== Dialog form ===== */
+.form-row { display: flex; gap: 12px; margin-bottom: 14px; }
+.form-row:last-child { margin-bottom: 0; }
+.form-row .form-item { flex: 1; min-width: 0; }
+.form-item label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* ===== Notification Toast ===== */
+.notification-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 99999;
+  background: var(--surface-white);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  box-shadow: var(--shadow-xl);
+  border-left: 4px solid var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 320px;
+  max-width: 420px;
+  animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.notification-toast.leaving {
+  animation: slideOut 0.3s ease forwards;
+}
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(120%); opacity: 0; }
+}
+.notification-toast .notif-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: #FEF2F2;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.notif-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.notif-desc  { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ===== Fade transition (for toast) ===== */
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+
+/* ===== Sync notification banner ===== */
+.sync-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 99998;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  animation: slideDown 0.3s ease;
+}
+.sync-banner.syncing {
+  background: linear-gradient(90deg, #EFF6FF, #F5F3FF);
+  color: #4F46E5;
+  border-bottom: 1px solid #C7D2FE;
+}
+.sync-banner.success {
+  background: #ECFDF5;
+  color: #059669;
+  border-bottom: 1px solid #A7F3D0;
+}
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ===== Loading overlay ===== */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(4px);
+  z-index: 99997;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.loading-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid #E2E8F0;
+  border-top-color: var(--primary-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--text-secondary); }
+
+/* ===== Add subtle bg pattern ===== */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-image:
+    radial-gradient(ellipse 80% 80% at 20% 10%, rgba(37,99,235,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 60% at 80% 90%, rgba(124,58,237,0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ===== Debug info panel (hidden by default, shown when needed) ===== */
+.debug-info {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  z-index: 99996;
+  background: rgba(0,0,0,0.8);
+  color: #0f0;
+  font: 11px/1.4 monospace;
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 400px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" v-if="isLoading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">{{ loadingText }}</div>
+  </div>
+
+  <!-- Sync Notification Banner -->
+  <transition name="fade">
+    <div v-if="syncBanner.show" :class="'sync-banner ' + syncBanner.type">
+      {{ syncBanner.text }}
+    </div>
+  </transition>
+
+  <!-- ===== HEADER ===== -->
+  <div class="app-container">
+    <header class="header">
+      <div class="header-left">
+        <div class="header-logo">📋</div>
+        <div>
+          <div class="header-title">我的事项</div>
+          <div class="header-subtitle">{{ todayDisplay }}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">
+        <div :class="'sync-status ' + syncStatusClass">
+          <span class="sync-dot"></span>
+          {{ syncStatusText }}
+        </div>
+        <div class="header-actions">
+          <t-button theme="default" variant="outline" @click="openAlarmDialog">
+            &#x23F0; 设置闹钟
+          </t-button>
+          <t-button theme="primary" @click="openAddDialog">
+            ＋ 新建任务
+          </t-button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== STATS ===== -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div>
+          <div class="stat-value">{{ tasks.length }}</div>
+          <div class="stat-label">全部任务</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div>
+          <div class="stat-value">{{ completedCount }}</div>
+          <div class="label">已完成</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">🔥</div>
+        <div>
+          <div class="stat-value">{{ urgentCount }}</div>
+          <div class="stat-label">紧急任务</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">&#x23F0;</div>
+        <div>
+          <div class="stat-value">{{ activeAlarmsCount }}</div>
+          <div class="stat-label">活跃闹钟</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="main-grid">
+      <!-- Left: Task List -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">任务列表</div>
+          <t-radio-group v-model="filter" size="small">
+            <t-radio-button value="all">全部</t-radio-button>
+            <t-radio-button value="pending">待处理</t-radio-button>
+            <t-radio-button value="completed">已完成</t-radio-button>
+          </t-radio-group>
+        </div>
+        <div class="panel-body">
+          <!-- Toolbar -->
+          <div class="toolbar">
+            <t-input v-model="searchQuery" placeholder="&#x1F50D; 搜索任务..." clearable />
+            <t-select :value="categoryFilter" @change="(v) => categoryFilter = v" placeholder="分类筛选" clearable :popup-props="popupBody">
+              <t-option value="work" label="💼 工作" />
+              <t-option value="personal" label="👤 个人" />
+              <t-option value="health" label="💚 健康" />
+              <t-option value="finance" label="💰 财务" />
+              <t-option value="other" label="📌 其他" />
+            </t-select>
+            <t-select :value="priorityFilter" @change="(v) => priorityFilter = v" placeholder="优先级" clearable :popup-props="popupBody">
+              <t-option value="high" label="🔴 高" />
+              <t-option value="medium" label="🟡 中" />
+              <t-option value="low" label="🟢 低" />
+            </t-select>
+          </div>
+
+          <!-- Task Items -->
+          <div class="task-list" v-if="filteredTasks.length > 0">
+            <div
+              v-for="task in filteredTasks"
+              :key="task._id || task.id"
+              class="task-item"
+              :class="{
+                completed: task.completed,
+                urgent: task.priority === 'high' && !task.completed,
+                'checkin-task': task.checkInEnabled
+              }"
+            >
+              <!-- 打卡任务：水球进度 + 打卡按钮 -->
+              <template v-if="task.checkInEnabled">
+                <div class="checkin-water" :class="{ full: task.completed }" @click.stop="doCheckIn(task)">
+                  <div class="water-fill" :style="{ height: ((task.checkInProgress || 0) / (task.checkInGoal || 1) * 100) + '%' }"></div>
+                  <span class="water-text">{{ task.checkInProgress || 0 }}/{{ task.checkInGoal }}</span>
+                </div>
+                <span class="task-priority-dot" :class="task.priority"></span>
+                <div class="task-content" @click="openEditDialog(task)">
+                  <div class="task-title">{{ task.title }}</div>
+                  <div class="task-desc" v-if="task.description">{{ task.description }}</div>
+                  <div class="task-meta">
+                    <span class="cat-tag checkin-tag">{{ task.checkInMode === 'counter' ? '🔢 计数' : '📋 每日' }} · {{ task.checkInProgress || 0 }}次</span>
+                    <span :class="'cat-tag ' + task.category">{{ categoryLabel(task.category) }}</span>
+                  </div>
+                </div>
+                <div class="task-actions" @click.stop>
+                  <t-button
+                    v-if="task.checkInMode === 'counter' && !task.completed && (task.checkInProgress > 0)"
+                    theme="default" size="small"
+                    @click="undoCheckIn(task)"
+                    style="min-width:32px;padding:0 6px;"
+                  >−1</t-button>
+                  <t-button
+                    v-if="!task.completed"
+                    theme="primary" size="small"
+                    @click="doCheckIn(task)"
+                    :disabled="task.checkInMode !== 'counter' && (task.checkInHistory||[]).includes(fmtDateString())"
+                  >
+                    {{ task.checkInMode === 'counter' ? '+1' : ((task.checkInHistory||[]).includes(fmtDateString()) ? '已打卡' : '打卡') }}
+                  </t-button>
+                  <t-button theme="default" variant="text" size="small" @click="openCalendar(task)">📅</t-button>
+                  <t-button theme="default" variant="text" size="small" @click="openEditDialog(task)">编辑</t-button>
+                  <t-popconfirm content="确认删除此任务？" @confirm="() => deleteTask(task)">
+                    <t-button theme="danger" variant="text" size="small">删除</t-button>
+                  </t-popconfirm>
+                </div>
+              </template>
+              <!-- 普通任务：checkbox + 原布局 -->
+              <template v-else>
+                <t-checkbox
+                  :model-value="task.completed"
+                  @change="(val) => toggleTask(task, val)"
+                  class="task-checkbox"
+                />
+                <span class="task-priority-dot" :class="task.priority"></span>
+                <div class="task-content" @click="openEditDialog(task)">
+                  <div class="task-title">{{ task.title }}</div>
+                  <div class="task-desc" v-if="task.description">{{ task.description }}</div>
+                  <div class="task-meta">
+                    <span v-if="task.dueDate">📅 {{ task.dueDate }} {{ task.dueTime || '' }}</span>
+                    <span :class="'cat-tag ' + task.category">{{ categoryLabel(task.category) }}</span>
+                    <t-tag size="small" :theme="priorityTheme(task.priority)" variant="light">
+                      {{ priorityLabel(task.priority) }}
+                    </t-tag>
+                  </div>
+                </div>
+                <div class="task-actions" @click.stop>
+                  <t-button theme="default" variant="text" size="small" @click="openEditDialog(task)">
+                    编辑
+                  </t-button>
+                  <t-popconfirm content="确认删除此任务？" @click="() => deleteTask(task)">
+                    <t-button theme="danger" variant="text" size="small">删除</t-button>
+                  </t-popconfirm>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <div class="empty-icon">📭</div>
+            <div class="empty-text">
+              {{ hasActiveFilter ? '没有匹配的任务' : '暂无任务，点击上方按钮创建第一个任务吧！' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Sidebar -->
+      <div class="sidebar">
+        <!-- Alarms Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">闹钟提醒</div>
+            <t-button theme="primary" variant="text" size="small" @click="openAlarmDialog">＋ 添加</t-button>
+          </div>
+          <div class="panel-body" style="padding-top: 12px;">
+            <div class="alarm-list" v-if="alarms.length > 0">
+              <div
+                v-for="alarm in alarms"
+                :key="alarm._id || alarm.id"
+                class="alarm-item"
+                :class="{ ringing: alarm.ringing && !alarm.dismissed }"
+              >
+                <span style="font-size:20px;">{{ (alarm.ringing && !alarm.dismissed) ? '&#x1F514;' : '&#x23F0;' }}</span>
+                <div class="alarm-info">
+                  <div class="alarm-title">{{ alarm.label }}</div>
+                  <div class="alarm-time">{{ alarm.date }} {{ alarm.time }}</div>
+                  <div class="alarm-countdown" :class="{ soon: alarm.soon }">
+                    {{ alarm.countdownText }}
+                  </div>
+                </div>
+                <t-button theme="danger" variant="text" size="small" @click="dismissAlarm(alarm)">
+                  {{ (alarm.ringing && !alarm.dismissed) ? '关闭' : '删除' }}
+                </t-button>
+              </div>
+            </div>
+            <div v-else class="empty-state" style="padding:32px 20px;">
+              <div class="empty-icon">🔕</div>
+              <div class="empty-text">暂无闹钟</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">任务分布</div>
+          </div>
+          <div class="panel-body">
+            <template v-if="totalTasks > 0">
+              <div style="margin-bottom:14px;" v-for="cat in categoryStats" :key="cat.key">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                  <span style="color:var(--text-secondary);">{{ cat.label }}</span>
+                  <span style="font-weight:600;color:var(--text-primary);">{{ cat.count }}</span>
+                </div>
+                <div style="height:6px;background:var(--bg-page);border-radius:3px;overflow:hidden;">
+                  <div :style="{
+                    width: cat.percent + '%',
+                    height: '100%',
+                    borderRadius: '3px',
+                    background: cat.color,
+                    transition: 'width 0.6s ease'
+                  }"></div>
+                </div>
+              </div>
+            </template>
+            <div v-else style="text-align:center;color:var(--text-muted);font-size:13px;padding:12px 0;">
+              暂无数据
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD/EDIT TASK DIALOG ===== -->
+  <t-dialog
+    v-model:visible="showAddDialog"
+    :header="dialogTitle"
+    width="560px"
+    @closed="resetForm"
+  >
+    <template #footer>
+      <t-button theme="default" @click="showAddDialog = false">取消</t-button>
+      <t-button theme="primary" @click="handleTaskConfirm">
+        {{ dialogConfirmText }}
+      </t-button>
+    </template>
+    <div class="form-row">
+      <div class="form-item" style="flex:2;">
+        <label>任务标题 <span style="color:var(--danger)">*</span></label>
+        <t-input v-model="form.title" placeholder="请输入任务标题" maxlength="100" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-item">
+        <label>描述</label>
+        <t-textarea v-model="form.description" placeholder="任务详细描述（可选）" :autosize="autosizeConfig" maxlength="500" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-item">
+        <label>分类</label>
+        <t-select
+          v-model="form.category"
+          placeholder="选择分类"
+          :popup-props="popupBody"
+          :options="categoryOptions"
+        />
+      </div>
+      <div class="form-item">
+        <label>优先级</label>
+        <t-select
+          v-model="form.priority"
+          placeholder="选择优先级"
+          :popup-props="popupBody"
+          :options="priorityOptions"
+        />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-item">
+        <label>截止日期</label>
+        <t-date-picker
+          v-model="form.dueDate"
+          placeholder="选择日期"
+          clearable
+          :popup-props="popupBody"
+        />
+      </div>
+      <div class="form-item">
+        <label>截止时间</label>
+        <t-time-picker
+          v-model="form.dueTime"
+          placeholder="选择时间"
+          clearable
+          :popup-props="popupBody"
+        />
+      </div>
+    </div>
+    <!-- 打卡设置 -->
+    <div class="form-row" style="align-items:center;flex-wrap:wrap;gap:8px;">
+      <div class="form-item" style="flex-shrink:0;">
+        <t-checkbox v-model="form.checkInEnabled">启用打卡（重复任务）</t-checkbox>
+      </div>
+      <div class="form-item" style="width:120px;" v-show="form.checkInEnabled">
+        <label>目标次数</label>
+        <t-input-number v-model="form.checkInGoal" :min="1" :max="9999" theme="column" style="width:100%;" />
+      </div>
+      <div class="form-item" style="width:130px;" v-show="form.checkInEnabled">
+        <label>打卡模式</label>
+        <t-select v-model="form.checkInMode" style="width:100%;" :options="checkInModeOptions" />
+      </div>
+    </div>
+  </t-dialog>
+
+  <!-- ===== CHECKIN CALENDAR DIALOG ===== -->
+  <t-dialog
+    v-model:visible="showCalendarDialog"
+    :header="'📅 ' + (calendarTask ? calendarTask.title : '打卡日历')"
+    width="380px"
+    :footer="false"
+  >
+    <div class="calendar-wrap">
+      <!-- Month navigation -->
+      <div class="cal-nav">
+        <t-button variant="text" size="small" @click="calPrevMonth">◀</t-button>
+        <span class="cal-month-title">{{ calYear }} 年 {{ calMonth }} 月</span>
+        <t-button variant="text" size="small" @click="calNextMonth">▶</t-button>
+      </div>
+      <!-- Weekday headers -->
+      <div class="cal-weekdays">
+        <span v-for="d in calWeekDays" :key="d">{{ d }}</span>
+      </div>
+      <!-- Date grid -->
+      <div class="cal-grid">
+        <div
+          v-for="(day, idx) in calDates"
+          :key="idx"
+          class="cal-day"
+          :class="{
+            'cal-today': day.today,
+            'cal-checked': day.checked,
+            'cal-other-month': !day.currentMonth,
+            'cal-future': day.future
+          }"
+          @click="calToggleDate(day.dateStr)"
+        >
+          <span class="cal-day-num">{{ day.day }}</span>
+          <span class="cal-day-badge" v-if="day.count > 1">×{{ day.count }}</span>
+        </div>
+      </div>
+      <div class="cal-legend">
+        <span><span class="cal-dot-leg checked"></span> 已打卡</span>
+        <span><span class="cal-dot-leg today"></span> 今天</span>
+        <span><span class="cal-dot-leg normal"></span> 未打卡</span>
+      </div>
+    </div>
+  </t-dialog>
+
+  <!-- ===== ADD ALARM DIALOG ===== -->
+  <t-dialog
+    v-model:visible="showAlarmDialog"
+    header="设置闹钟"
+    width="480px"
+    @closed="resetAlarmForm"
+  >
+    <template #footer>
+      <t-button theme="default" @click="showAlarmDialog = false">取消</t-button>
+      <t-button theme="primary" @click="handleAlarmConfirm">设置闹钟</t-button>
+    </template>
+    <div class="form-row">
+      <div class="form-item">
+        <label>闹钟名称 <span style="color:var(--danger)">*</span></label>
+        <t-input v-model="alarmForm.label" placeholder="例如：团队周会提醒" maxlength="50" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-item">
+        <label>日期</label>
+        <t-date-picker
+          v-model="alarmForm.date"
+          placeholder="选择提醒日期"
+          :popup-props="popupBody"
+        />
+      </div>
+      <div class="form-item">
+        <label>时间</label>
+        <t-time-picker
+          v-model="alarmForm.time"
+          placeholder="选择提醒时间"
+          :popup-props="popupBody"
+        />
+      </div>
+    </div>
+    <div style="padding:10px 0;font-size:12px;color:var(--text-muted);">
+      💡 提示：到达设定时间后，浏览器将弹出通知提醒您。所有已连接的用户都会看到相同的闹钟列表。
+    </div>
+  </t-dialog>
+
+  <!-- ===== NOTIFICATION TOAST ===== -->
+  <transition name="fade">
+    <div v-if="notifyToast.show" class="notification-toast" :class="{ leaving: notifyToast.closing }">
+      <div class="notif-icon">&#x1F514;</div>
+      <div>
+        <div class="notif-title">{{ notifyToast.title }}</div>
+        <div class="notif-desc">{{ notifyToast.desc }}</div>
+      </div>
+      <t-button theme="default" variant="text" size="small" @click="closeNotifyToast" style="margin-left:auto;">✕</t-button>
+    </div>
+  </transition>
+
+  <!-- Debug Panel (press Shift+D to toggle) -->
+  <div class="debug-info" v-if="showDebug" @click.stop>
+    <div><b>[Debug]</b> Mode: {{ connMode }} | Status: {{ syncStatus }}</div>
+    <div v-for="(line, i) in debugLog.slice(-15)" :key="i">{{ line }}</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  CONFIGURATION
+// ============================================================
+var ENV_ID = 'cwz-d2glf6xtm409cbb3a';
+
+// ============================================================
+//  CLOUDBASE INITIALIZATION
+// ============================================================
+var cbApp = null;
+
+function initCloudBaseSDK() {
+  try {
+    if (typeof cloudbase === 'undefined') {
+      console.warn('[CloudBase] SDK not loaded');
+      return null;
+    }
+    cbApp = cloudbase.init({
+      env: ENV_ID,
+      region: 'ap-shanghai'
+    });
+    console.log('[CloudBase] SDK initialized with env:', ENV_ID, 'region: ap-shanghai');
+    return cbApp;
+  } catch(e) {
+    console.error('[CloudBase] Init failed:', e);
+    return null;
+  }
+}
+
+// Init immediately
+initCloudBaseSDK();
+
+const { createApp, ref, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
+
+const app = createApp({
+  setup() {
+    // ==================== STATE ====================
+    const tasks = ref([]);
+    const alarms = ref([]);
+    const filter = ref('all');
+    const searchQuery = ref('');
+    const categoryFilter = ref('');
+    const priorityFilter = ref('');
+    const showAddDialog = ref(false);
+    const showAlarmDialog = ref(false);
+    const editingTaskId = ref(null);
+    const editingTaskDocId = ref(null);
+    const notifyToast = ref({ show: false, title: '', desc: '', closing: false });
+    const isLoading = ref(true);
+    const loadingText = ref('连接中...');
+    const syncStatus = ref('connecting'); // connecting | connected | offline | local
+    const syncBanner = ref({ show: false, text: '', type: 'syncing' });
+
+    let syncBannerTimer = null;
+
+    // Connection mode: 'cloudfunc' | 'local'
+    const connMode = ref('local');
+
+    // Debug
+    const showDebug = ref(false);
+    const debugLog = ref([]);
+
+    function log(msg) {
+      var ts = new Date().toLocaleTimeString();
+      debugLog.value.push('[' + ts + '] ' + msg);
+      console.log('[CloudSync] ' + msg);
+    };
+
+    const form = ref({
+      title: '',
+      description: '',
+      category: 'work',
+      priority: 'medium',
+      dueDate: '',
+      dueTime: '',
+      checkInEnabled: false,
+      checkInGoal: 21,
+      checkInMode: 'daily'
+    });
+
+    const alarmForm = ref({
+      label: '',
+      date: '',
+      time: ''
+    });
+
+    // 弹出层配置：静态对象，避免内联对象触发无限重渲染
+    const popupBody = { attach: 'body' };
+    const autosizeConfig = { minRows: 2, maxRows: 4 };
+
+    // Static option lists — passed via :options to avoid TDesign t-option slot bugs in dialogs
+    const categoryOptions = [
+      { value: 'work', label: '💼 工作' },
+      { value: 'personal', label: '👤 个人' },
+      { value: 'health', label: '💚 健康' },
+      { value: 'finance', label: '💰 财务' },
+      { value: 'other', label: '📌 其他' }
+    ];
+    const priorityOptions = [
+      { value: 'high', label: '🔴 高优先级' },
+      { value: 'medium', label: '🟡 中优先级' },
+      { value: 'low', label: '🟢 低优先级' }
+    ];
+    const checkInModeOptions = [
+      { value: 'daily', label: '📆 每天一次' },
+      { value: 'counter', label: '🔢 不限次数' }
+    ];
+
+    // ==================== SYNC STATUS ====================
+    const syncStatusClass = computed(function() { return syncStatus.value; });
+
+    const syncStatusText = computed(function() {
+      switch(syncStatus.value) {
+        case 'connected': return '已同步';
+        case 'connecting': return '连接中...';
+        case 'offline': return '离线';
+        case 'local': return '仅本地';
+        default: return '';
+      }
+    });
+
+    function showSyncBanner(text, type, duration) {
+      if (syncBannerTimer) clearTimeout(syncBannerTimer);
+      syncBanner.value = { show: true, text: text, type: type || 'syncing' };
+      if (duration) {
+        syncBannerTimer = setTimeout(function() { syncBanner.value.show = false; }, duration);
+      }
+    }
+
+    // ==================== DIRECT DATABASE OPERATIONS (via Web SDK) ====================
+    // Bypass cloud functions entirely — use SDK's db directly (public read/write)
+    async function op_loadTasks() {
+      var res = await cbApp.database().collection('tasks').orderBy('createdAt', 'desc').get();
+      return res.data || [];
+    }
+
+    async function op_addTask(data) {
+      var now = Date.now();
+      var doc = {
+        title: String(data.title || '').trim(),
+        description: data.description || '',
+        category: data.category || 'work',
+        priority: data.priority || 'medium',
+        dueDate: data.dueDate || '',
+        dueTime: data.dueTime || '',
+        completed: false,
+        checkInEnabled: !!data.checkInEnabled,
+        checkInGoal: Number(data.checkInGoal) || 0,
+        checkInMode: data.checkInMode || 'daily',
+        checkInProgress: 0,
+        checkInHistory: [],
+        createdAt: now,
+        updatedAt: now
+      };
+      var res = await cbApp.database().collection('tasks').add(doc);
+      return { _id: res._id, ...doc };
+    }
+
+    async function op_updateTask(id, data) {
+      var updateData = { updatedAt: Date.now() };
+      if (data.title !== undefined) updateData.title = String(data.title).trim();
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.category !== undefined) updateData.category = data.category;
+      if (data.priority !== undefined) updateData.priority = data.priority;
+      if (data.dueDate !== undefined) updateData.dueDate = data.dueDate;
+      if (data.dueTime !== undefined) updateData.dueTime = data.dueTime;
+      if (data.completed !== undefined) updateData.completed = !!data.completed;
+      if (data.checkInEnabled !== undefined) updateData.checkInEnabled = !!data.checkInEnabled;
+      if (data.checkInGoal !== undefined) updateData.checkInGoal = Number(data.checkInGoal);
+      if (data.checkInMode !== undefined) updateData.checkInMode = data.checkInMode;
+      if (data.checkInProgress !== undefined) updateData.checkInProgress = Number(data.checkInProgress);
+      if (data.checkInHistory !== undefined) updateData.checkInHistory = data.checkInHistory;
+      await cbApp.database().collection('tasks').doc(id).update(updateData);
+      return { _id: id, ...updateData };
+    }
+
+    async function op_deleteTask(id) {
+      await cbApp.database().collection('tasks').doc(id).remove();
+      return { deleted: id };
+    }
+
+    async function op_loadAlarms() {
+      var res = await cbApp.database().collection('alarms').orderBy('date', 'asc').orderBy('time', 'asc').get();
+      // Filter out the cloud seed marker and dismissed alarms
+      return (res.data || []).filter(function(doc) {
+        return doc.label !== '__cloud_seeded__' && !doc.dismissed;
+      });
+    }
+
+    async function op_addAlarm(data) {
+      var doc = {
+        label: String(data.label || '').trim(),
+        date: String(data.date || ''),
+        time: String(data.time || ''),
+        dismissed: false,
+        triggered: false
+      };
+      var res = await cbApp.database().collection('alarms').add(doc);
+      return { _id: res._id, ...doc };
+    }
+
+    async function op_updateAlarm(id, data) {
+      var updateData = {};
+      if (data.label !== undefined) updateData.label = data.label;
+      if (data.date !== undefined) updateData.date = data.date;
+      if (data.time !== undefined) updateData.time = data.time;
+      if (data.dismissed !== undefined) updateData.dismissed = !!data.dismissed;
+      if (data.triggered !== undefined) updateData.triggered = !!data.triggered;
+      await cbApp.database().collection('alarms').doc(id).update(updateData);
+      return { _id: id, ...updateData };
+    }
+
+    async function op_deleteAlarm(id) {
+      await cbApp.database().collection('alarms').doc(id).remove();
+      return { deleted: id };
+    }
+
+    // Local fallback operations
+    function local_addTask(data) {
+      return Promise.resolve({ _id: 'local_' + Date.now() });
+    }
+    function local_addAlarm(data) {
+      return Promise.resolve({ _id: 'local_alarm_' + Date.now() });
+    }
+
+    // ================================================================
+    //  NORMALIZE DATA FROM BACKEND
+    // ================================================================
+    function normalizeTaskFromDB(doc) {
+      return {
+        _id: doc._id,
+        id: doc._id,
+        title: doc.title || '',
+        description: doc.description || '',
+        category: doc.category || 'work',
+        priority: doc.priority || 'medium',
+        dueDate: doc.dueDate || '',
+        dueTime: doc.dueTime || '',
+        completed: !!doc.completed,
+        checkInEnabled: !!doc.checkInEnabled,
+        checkInGoal: Number(doc.checkInGoal) || 0,
+        checkInMode: doc.checkInMode || 'daily',
+        checkInProgress: Number(doc.checkInProgress) || 0,
+        checkInHistory: Array.isArray(doc.checkInHistory) ? doc.checkInHistory : [],
+        createdAt: doc.createdAt || Date.now(),
+        updatedAt: doc.updatedAt || Date.now()
+      };
+    }
+
+    function normalizeAlarmFromDB(doc) {
+      return {
+        _id: doc._id,
+        id: doc._id,
+        label: doc.label || '',
+        date: doc.date || '',
+        time: doc.time || '',
+        dismissed: !!doc.dismissed,
+        ringing: false,
+        soon: false,
+        countdownText: '',
+        triggered: !!doc.triggered,
+        _notified: false
+      };
+    }
+
+    // ================================================================
+    //  REALTIME SYNC (polling-based)
+    // ================================================================
+    let pollTimer = null;
+    let lastTaskHash = '';
+    let lastAlarmHash = '';
+
+    function computeHash(arr) {
+      return JSON.stringify(arr.map(function(item) {
+        return item._id + ':' + item.completed + ':' + (item.checkInProgress || 0) + ':' + (item.dismissed || '');
+      }));
+    }
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async function() {
+        if (connMode.value !== 'cloudfunc') return;
+        try {
+          var freshTasks = await op_loadTasks();
+          var freshAlarms = await op_loadAlarms();
+
+          var newTaskHash = computeHash(freshTasks);
+          var newAlarmHash = computeHash(freshAlarms);
+
+          if (newTaskHash !== lastTaskHash) {
+            tasks.value = freshTasks.map(normalizeTaskFromDB);
+            lastTaskHash = newTaskHash;
+            log('Tasks synced (' + tasks.value.length + ' items)');
+          }
+          if (newAlarmHash !== lastAlarmHash) {
+            // Merge cloud data while preserving runtime state (ringing, countdown, _notified)
+            var oldAlarms = alarms.value || [];
+            alarms.value = freshAlarms.map(function(freshAlarm) {
+              var norm = normalizeAlarmFromDB(freshAlarm);
+              // Preserve runtime state from existing matching alarm
+              var existing = oldAlarms.find(function(a) { return a._id === freshAlarm._id; });
+              if (existing) {
+                norm.ringing = existing.ringing;
+                norm.soon = existing.soon;
+                norm.countdownText = existing.countdownText;
+                norm._notified = existing._notified;
+              }
+              return norm;
+            });
+            lastAlarmHash = newAlarmHash;
+            log('Alarms synced (' + alarms.value.length + ' items)');
+          }
+        } catch(e) {
+          log('Poll error: ' + e.message);
+        }
+      }, 5000); // Poll every 5 seconds
+    }
+
+    // ================================================================
+    //  LOCAL FALLBACK
+    // ================================================================
+    function saveLocalData() {
+      try {
+        localStorage.setItem('tr_tasks', JSON.stringify(tasks.value));
+        localStorage.setItem('tr_alarms', JSON.stringify(
+          alarms.value.map(function(a) {
+            return {
+              _id: a._id, id: a.id, label: a.label, date: a.date, time: a.time,
+              dismissed: !!a.dismissed, triggered: !!a.triggered
+            };
+          })
+        ));
+      } catch(e) {}
+    }
+
+    function loadLocalData() {
+      try {
+        var savedTasks = localStorage.getItem('tr_tasks');
+        if (savedTasks) tasks.value = JSON.parse(savedTasks);
+        var savedAlarms = localStorage.getItem('tr_alarms');
+        if (savedAlarms) {
+          alarms.value = JSON.parse(savedAlarms).map(function(a) {
+            return Object.assign({}, a, { ringing:false, soon:false, countdownText:'', _notified:false });
+          });
+        }
+      } catch(e) {
+        seedDemoData();
+      }
+    }
+
+    function seedDemoData() {
+      var today = new Date();
+      var tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      tasks.value = [
+        { _id:'demo_1001', id:'demo_1001', title:'完成季度报告', description:'整理Q2数据并撰写分析',
+          category:'work', priority:'high', dueDate:fmtDate(today), dueTime:'17:00',
+          completed:false, createdAt:Date.now()-3600000, updatedAt:Date.now() },
+        { _id:'demo_1002', id:'demo_1002', title:'预约牙科检查', description:'',
+          category:'health', priority:'medium', dueDate:fmtDate(tomorrow), dueTime:'10:00',
+          completed:false, createdAt:Date.now()-7200000, updatedAt:Date.now() },
+        { _id:'demo_1003', id:'demo_1003', title:'缴纳房租', description:'本月房租和水电',
+          category:'finance', priority:'high', dueDate:fmtDate(today), dueTime:'',
+          completed:false, createdAt:Date.now()-10800000, updatedAt:Date.now() },
+        { _id:'demo_1004', id:'demo_1004', title:'阅读《深度工作》', description:'至少读完第三章',
+          category:'personal', priority:'low', dueDate:'', dueTime:'',
+          completed:false, createdAt:Date.now()-14400000, updatedAt:Date.now() },
+        { _id:'demo_1005', id:'demo_1005', title:'健身房训练', description:'背部和二头肌训练日',
+          category:'health', priority:'medium', dueDate:fmtDate(today), dueTime:'19:00',
+          completed:true, createdAt:Date.now()-18000000, updatedAt:Date.now() }
+      ];
+    }
+
+    // ==================== HELPERS ====================
+    function normalizeDate(val) {
+      if (!val) return '';
+      if (typeof val === 'string') return val;
+      if (val instanceof Date) {
+        return val.getFullYear() + '-' +
+          String(val.getMonth()+1).padStart(2,'0') + '-' +
+          String(val.getDate()).padStart(2,'0');
+      }
+      if (Array.isArray(val)) return val.join('-');
+      return String(val);
+    }
+
+    function normalizeTime(val) {
+      if (!val) return '';
+      if (typeof val === 'string') {
+        var parts = val.split(':');
+        if (parts.length >= 2) return parts[0] + ':' + parts[1];
+        return val;
+      }
+      return String(val);
+    }
+
+    function categoryLabel(cat) {
+      var map = { work: '💼 工作', personal: '👤 个人', health: '💚 健康', finance: '💰 财务', other: '📌 其他' };
+      return map[cat] || cat || '未分类';
+    }
+    function priorityLabel(p) {
+      var m = { high: '高优先级', medium: '中优先级', low: '低优先级' };
+      return m[p] || p || '未知';
+    }
+    function priorityTheme(p) {
+      var m = { high: 'danger', medium: 'warning', low: 'success' };
+      return m[p] || 'default';
+    }
+
+    function fmtDate(d) {
+      return d.getFullYear() + '-' +
+             String(d.getMonth()+1).padStart(2,'0') + '-' +
+             String(d.getDate()).padStart(2,'0');
+    }
+    function fmtDateString() { return fmtDate(new Date()); }
+    const weekdays = ['日','一','二','三','四','五','六'];
+    const todayDisplay = computed(function() {
+      var d = new Date();
+      return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 星期' + weekdays[d.getDay()];
+    });
+
+    // ==================== COMPUTED ====================
+    const completedCount = computed(function() {
+      return tasks.value.filter(function(t) { return t.completed; }).length;
+    });
+    const urgentCount = computed(function() {
+      return tasks.value.filter(function(t) { return t.priority === 'high' && !t.completed; }).length;
+    });
+    const totalTasks = computed(function() { return tasks.value.length; });
+    const activeAlarmsCount = computed(function() {
+      return alarms.value.filter(function(a) { return !a.dismissed; }).length;
+    });
+    const hasActiveFilter = computed(function() {
+      return !!searchQuery.value || !!categoryFilter.value || !!priorityFilter.value;
+    });
+
+    const filteredTasks = computed(function() {
+      var result = tasks.value.slice();
+
+      if (filter.value === 'pending') result = result.filter(function(t) { return !t.completed; });
+      else if (filter.value === 'completed') result = result.filter(function(t) { return t.completed; });
+
+      if (searchQuery.value) {
+        var q = searchQuery.value.toLowerCase();
+        result = result.filter(function(t) {
+          return t.title.toLowerCase().indexOf(q) !== -1 ||
+                 (t.description && t.description.toLowerCase().indexOf(q) !== -1);
+        });
+      }
+
+      if (categoryFilter.value) result = result.filter(function(t) { return t.category === categoryFilter.value; });
+      if (priorityFilter.value) result = result.filter(function(t) { return t.priority === priorityFilter.value; });
+
+      result.sort(function(a, b) {
+        var pOrder = { high: 0, medium: 1, low: 2 };
+        if (a.priority !== b.priority) return pOrder[a.priority] - pOrder[b.priority];
+        if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        if (a.dueDate) return -1;
+        if (b.dueDate) return 1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+
+      return result;
+    });
+
+    const categoryStats = computed(function() {
+      var cats = [
+        { key: 'work', label: '💼 工作', color: '#2563EB', count: 0 },
+        { key: 'personal', label: '👤 个人', color: '#7C3AED', count: 0 },
+        { key: 'health', label: '💚 健康', color: '#10B981', count: 0 },
+        { key: 'finance', label: '💰 财务', color: '#D97706', count: 0 },
+        { key: 'other', label: '📌 其他', color: '#64748B', count: 0 },
+      ];
+      var total = totalTasks.value;
+      cats.forEach(function(c) {
+        c.count = tasks.value.filter(function(t) { return t.category === c.key; }).length;
+        c.percent = total > 0 ? Math.round(c.count / total * 100) : 0;
+      });
+      return cats;
+    });
+
+    // ==================== DIALOG HANDLERS ====================
+    // Dedicated refs for dialog display — completely decoupled from business logic
+    // so that @close/resetForm never mutates the dialog's header/button text.
+    const dialogTitle = ref('新建任务');
+    const dialogConfirmText = ref('创建任务');
+    // Internal flag for create vs update logic — NOT exposed to template
+    const isEditing = ref(false);
+
+    // ==================== CALENDAR CHECK-IN ====================
+    const showCalendarDialog = ref(false);
+    const calendarTask = ref(null);
+    const calYear = ref(2026);
+    const calMonth = ref(1);
+    const calWeekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    
+    // Computed calendar dates for the current month view
+    const calDates = computed(function() {
+      var y = calYear.value, m = calMonth.value;
+      var firstDay = new Date(y, m - 1, 1);
+      var startDay = firstDay.getDay(); // 0=Sun
+      var daysInMonth = new Date(y, m, 0).getDate();
+      var todayStr = fmtDate(new Date());
+      var checkedSet = {};
+      var checkedCount = {};
+      if (calendarTask.value && calendarTask.value.checkInHistory) {
+        calendarTask.value.checkInHistory.forEach(function(d) {
+          checkedSet[d] = true;
+          checkedCount[d] = (checkedCount[d] || 0) + 1;
+        });
+      }
+      var result = [];
+      // Previous month padding
+      if (startDay > 0) {
+        var prevEnd = new Date(y, m - 1, 0).getDate();
+        for (var i = startDay - 1; i >= 0; i--) {
+          result.push({ day: prevEnd - i, dateStr: '', currentMonth: false, today: false, checked: false, future: true });
+        }
+      }
+      // Current month
+      for (var d = 1; d <= daysInMonth; d++) {
+        var ds = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        var cnt = checkedCount[ds] || 0;
+        result.push({
+          day: d,
+          dateStr: ds,
+          currentMonth: true,
+          today: ds === todayStr,
+          checked: !!checkedSet[ds],
+          count: cnt,
+          future: ds > todayStr
+        });
+      }
+      // Next month padding to fill grid
+      while (result.length % 7 !== 0) {
+        result.push({ day: result.length - startDay - daysInMonth + 1, dateStr: '', currentMonth: false, today: false, checked: false, future: true });
+      }
+      return result;
+    });
+
+    function openCalendar(task) {
+      calendarTask.value = task;
+      var now = new Date();
+      calYear.value = now.getFullYear();
+      calMonth.value = now.getMonth() + 1;
+      showCalendarDialog.value = true;
+    }
+
+    function calPrevMonth() {
+      if (calMonth.value === 1) { calMonth.value = 12; calYear.value--; }
+      else { calMonth.value--; }
+    }
+
+    function calNextMonth() {
+      if (calMonth.value === 12) { calMonth.value = 1; calYear.value++; }
+      else { calMonth.value++; }
+    }
+
+    async function calToggleDate(dateStr) {
+      var task = calendarTask.value;
+      if (!task || !dateStr) return;
+      if (!task.checkInHistory) task.checkInHistory = [];
+
+      var isCounter = task.checkInMode === 'counter';
+      var idx = task.checkInHistory.indexOf(dateStr);
+
+      if (idx !== -1) {
+        // Remove one occurrence (for counter: removes one instance)
+        task.checkInHistory.splice(idx, 1);
+      } else {
+        // Add one occurrence
+        task.checkInHistory.push(dateStr);
+      }
+
+      // Recalculate progress
+      task.checkInProgress = task.checkInHistory.length;
+      if (task.checkInProgress >= task.checkInGoal) {
+        task.completed = true;
+        TDesign.MessagePlugin.success('🎉 任务已达成！');
+      } else {
+        task.completed = false;
+      }
+
+      try {
+        if (task._id && !String(task._id).startsWith('local_')) {
+          await op_updateTask(task._id, {
+            checkInProgress: task.checkInProgress,
+            checkInHistory: task.checkInHistory,
+            completed: task.completed,
+            updatedAt: Date.now()
+          });
+        }
+        saveLocalData();
+      } catch(e) {
+        console.error('Calendar toggle failed:', e);
+        saveLocalData();
+      }
+    }
+
+    const openAddDialog = function() {
+      isEditing.value = false;
+      editingTaskId.value = null;
+      editingTaskDocId.value = null;
+      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily' };
+      dialogTitle.value = '新建任务';
+      dialogConfirmText.value = '创建任务';
+      showAddDialog.value = true;
+    };
+
+    const openEditDialog = function(task) {
+      isEditing.value = true;
+      editingTaskId.value = task.id;
+      editingTaskDocId.value = task._id;
+      form.value = {
+        title: task.title || '',
+        description: task.description || '',
+        category: task.category || 'work',
+        priority: task.priority || 'medium',
+        dueDate: task.dueDate || '',
+        dueTime: task.dueTime || '',
+        checkInEnabled: !!task.checkInEnabled,
+        checkInGoal: Number(task.checkInGoal) || 21,
+        checkInMode: task.checkInMode || 'daily'
+      };
+      dialogTitle.value = '编辑任务';
+      dialogConfirmText.value = '保存修改';
+      showAddDialog.value = true;
+    };
+
+    const handleTaskConfirm = async function() {
+      if (!form.value.title.trim()) {
+        TDesign.MessagePlugin.warning('请输入任务标题');
+        return;
+      }
+
+      var taskData = {
+        title: form.value.title.trim(),
+        description: form.value.description.trim(),
+        category: form.value.category,
+        priority: form.value.priority,
+        dueDate: normalizeDate(form.value.dueDate),
+        dueTime: normalizeTime(form.value.dueTime),
+        checkInEnabled: !!form.value.checkInEnabled,
+        checkInGoal: Number(form.value.checkInGoal) || 0,
+        checkInMode: form.value.checkInMode || 'daily',
+        updatedAt: Date.now()
+      };
+
+      try {
+        if (isEditing.value) {
+          // Update
+          if (editingTaskDocId.value && !String(editingTaskDocId.value).startsWith('local_')) {
+            await op_updateTask(editingTaskDocId.value, taskData);
+          }
+          var idx = tasks.value.findIndex(function(t) { return t._id === editingTaskDocId.value; });
+          if (idx !== -1) Object.assign(tasks.value[idx], taskData);
+          TDesign.MessagePlugin.success('任务已更新（已同步到云端）');
+        } else {
+          // Create
+          taskData.completed = false;
+          taskData.createdAt = Date.now();
+
+          var res;
+          if (connMode.value === 'cloudfunc') {
+            res = await op_addTask(taskData);
+          } else {
+            res = await local_addTask(taskData);
+          }
+          var newTask = normalizeTaskFromDB(Object.assign({}, taskData, { _id: res._id }));
+          tasks.value.unshift(newTask);
+          TDesign.MessagePlugin.success('任务创建成功（已同步到云端）');
+        }
+        saveLocalData();
+      } catch(e) {
+        console.error('Task operation failed:', e);
+        // Optimistic local update as fallback
+        if (isEditing.value) {
+          var idx2 = tasks.value.findIndex(function(t) { return t._id === editingTaskDocId.value; });
+          if (idx2 !== -1) Object.assign(tasks.value[idx2], taskData);
+        } else {
+          taskData.completed = false;
+          taskData.createdAt = Date.now();
+          taskData._id = 'local_' + Date.now();
+          taskData.id = taskData._id;
+          tasks.value.unshift(Object.assign({}, taskData));
+        }
+        saveLocalData();
+        TDesign.MessagePlugin.warning('操作完成（本地模式）');
+      }
+      // resetForm() will be called automatically by @closed after close animation
+      showAddDialog.value = false;
+    };
+
+    const deleteTask = async function(task) {
+      try {
+        if (task._id && !String(task._id).startsWith('local_')) {
+          await op_deleteTask(task._id);
+        }
+        tasks.value = tasks.value.filter(function(t) {
+          return (t._id !== task._id) && (t.id !== task.id);
+        });
+        saveLocalData();
+        TDesign.MessagePlugin.success('任务已删除');
+      } catch(e) {
+        console.error('Delete failed:', e);
+        tasks.value = tasks.value.filter(function(t) {
+          return (t._id !== task._id) && (t.id !== task.id);
+        });
+        saveLocalData();
+        TDesign.MessagePlugin.success('任务已删除（本地）');
+      }
+    };
+
+    const toggleTask = async function(task, checkedVal) {
+      task.completed = !!checkedVal;
+      try {
+        if (task._id && !String(task._id).startsWith('local_')) {
+          await op_updateTask(task._id, { completed: task.completed, updatedAt: Date.now() });
+        }
+        saveLocalData();
+      } catch(e) {
+        console.error('Toggle failed:', e);
+        saveLocalData();
+      }
+      TDesign.MessagePlugin.info(task.completed ? '任务已完成 ✓' : '任务已重新打开');
+    };
+
+    // Check-in (打卡)
+    const doCheckIn = async function(task) {
+      if (task.completed || !task.checkInEnabled) return;
+      if (task.checkInProgress >= task.checkInGoal) return;
+
+      var today = fmtDate(new Date());
+      var isCounter = task.checkInMode === 'counter';
+
+      // Daily mode: only one check-in per day
+      if (!isCounter) {
+        var alreadyChecked = (task.checkInHistory || []).some(function(d) { return d === today; });
+        if (alreadyChecked) {
+          TDesign.MessagePlugin.warning('今天已经打卡过了！');
+          return;
+        }
+      }
+
+      if (!task.checkInHistory) task.checkInHistory = [];
+      task.checkInHistory.push(today);
+      task.checkInProgress = task.checkInHistory.length;
+      // Also keep legacy field for backward compat
+      task.checkInCount = task.checkInProgress;
+
+      if (task.checkInProgress >= task.checkInGoal) {
+        task.completed = true;
+        var prefix = isCounter ? '第 ' + task.checkInProgress + ' 次打卡！' : '';
+        TDesign.MessagePlugin.success(prefix + '🎉 恭喜！已完成全部 ' + task.checkInGoal + ' 次，任务完成！');
+      } else {
+        var remaining = task.checkInGoal - task.checkInProgress;
+        var msg = isCounter
+          ? '✅ +1！已完成 ' + task.checkInProgress + ' / ' + task.checkInGoal + '，还剩 ' + remaining + ' 次'
+          : '✅ 打卡成功！已坚持 ' + task.checkInProgress + ' 天，还剩 ' + remaining + ' 天';
+        TDesign.MessagePlugin.success(msg);
+      }
+
+      try {
+        if (task._id && !String(task._id).startsWith('local_')) {
+          await op_updateTask(task._id, {
+            checkInProgress: task.checkInProgress,
+            checkInHistory: task.checkInHistory,
+            completed: task.completed,
+            updatedAt: Date.now()
+          });
+        }
+        saveLocalData();
+      } catch(e) {
+        console.error('Check-in failed:', e);
+        saveLocalData();
+      }
+    };
+
+    // Undo last check-in (counter mode only)
+    const undoCheckIn = async function(task) {
+      if (!task.checkInEnabled || task.checkInMode !== 'counter') return;
+      if (!task.checkInHistory || task.checkInHistory.length === 0) return;
+
+      task.checkInHistory.pop();
+      task.checkInProgress = task.checkInHistory.length;
+      task.completed = false;
+
+      TDesign.MessagePlugin.info('已撤销一次打卡（当前 ' + task.checkInProgress + ' / ' + task.checkInGoal + '）');
+
+      try {
+        if (task._id && !String(task._id).startsWith('local_')) {
+          await op_updateTask(task._id, {
+            checkInProgress: task.checkInProgress,
+            checkInHistory: task.checkInHistory,
+            completed: false,
+            updatedAt: Date.now()
+          });
+        }
+        saveLocalData();
+      } catch(e) {
+        console.error('Undo check-in failed:', e);
+        saveLocalData();
+      }
+    };
+
+    const resetForm = function() {
+      // dialogTitle & dialogConfirmText intentionally NOT reset here —
+      // mutating dialog props during close animation causes a render loop.
+      editingTaskId.value = null;
+      editingTaskDocId.value = null;
+      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily' };
+    };
+
+    // ==================== ALARM HANDLERS ====================
+    const openAlarmDialog = function() { resetAlarmForm(); showAlarmDialog.value = true; };
+
+    const handleAlarmConfirm = async function() {
+      if (!alarmForm.value.label.trim()) {
+        TDesign.MessagePlugin.warning('请输入闹钟名称');
+        return;
+      }
+
+      var d = normalizeDate(alarmForm.value.date);
+      var t = normalizeTime(alarmForm.value.time);
+      if (!d || !t) { TDesign.MessagePlugin.warning('请选择日期和时间'); return; }
+
+      var alarmData = { label: alarmForm.value.label.trim(), date: d, time: t, dismissed: false, triggered: false };
+
+      try {
+        var res;
+        if (connMode.value === 'cloudfunc') {
+          res = await op_addAlarm(alarmData);
+        } else {
+          res = await local_addAlarm(alarmData);
+        }
+        var na = normalizeAlarmFromDB(Object.assign({}, alarmData, { _id: res._id }));
+        alarms.value.push(na);
+        sortAlarms();
+        TDesign.MessagePlugin.success('闹钟设置成功（已同步到云端）');
+      } catch(e) {
+        console.error('Add alarm failed:', e);
+        alarmData._id = 'local_alarm_' + Date.now();
+        alarmData.id = alarmData._id;
+        alarms.value.push(Object.assign({}, alarmData, { ringing:false, soon:false, countdownText:'', _notified:false }));
+        sortAlarms();
+        saveLocalData();
+        TDesign.MessagePlugin.warning('闹钟已保存（本地模式）');
+      }
+      // resetAlarmForm() will be called automatically by @closed after close animation
+      showAlarmDialog.value = false;
+    };
+
+    const dismissAlarm = async function(alarm) {
+      var isRinging = alarm.ringing && !alarm.dismissed;
+
+      alarm.dismissed = true;
+      alarm.ringing = false;
+
+      // 统一使用软删除（dismissed=true），避免因数据库安全规则禁止 remove 导致删除失败
+      var cloudSuccess = false;
+      try {
+        if (alarm._id && !String(alarm._id).startsWith('local_')) {
+          if (isRinging) {
+            // Ringing → dismiss, keep in DB
+            await op_updateAlarm(alarm._id, { dismissed: true });
+            cloudSuccess = true;
+          } else {
+            // Not ringing → try permanent delete, fallback to soft delete
+            try {
+              await op_deleteAlarm(alarm._id);
+              cloudSuccess = true;
+            } catch(deleteErr) {
+              log('Permanent delete failed, trying soft delete: ' + (deleteErr.message || deleteErr));
+              await op_updateAlarm(alarm._id, { dismissed: true });
+              cloudSuccess = true;
+            }
+          }
+        }
+      } catch(e) {
+        log('Alarm dismiss/delete failed: ' + (e.message || e));
+        // 即使云端操作失败，也继续本地删除
+      }
+
+      // 从本地列表中移除所有已 dismissed 的闹钟
+      alarms.value = alarms.value.filter(function(a) { return !a.dismissed; });
+      saveLocalData();
+
+      if (!cloudSuccess && alarm._id && !String(alarm._id).startsWith('local_')) {
+        TDesign.MessagePlugin.warning('闹钟已本地移除，云端同步可能失败（按 Shift+D 查看日志）');
+      } else if (isRinging) {
+        TDesign.MessagePlugin.info('闹钟已关闭');
+      } else {
+        TDesign.MessagePlugin.success('闹钟已删除');
+      }
+    };
+
+    const resetAlarmForm = function() { alarmForm.value = { label:'', date:'', time: '' }; };
+
+    function sortAlarms() {
+      alarms.value.sort(function(a, b) { return (a.date+a.time).localeCompare(b.date+b.time); });
+    }
+
+    // ==================== NOTIFICATION ====================
+    let notifyTimeout = null;
+
+    const triggerNotification = function(alarm) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification('⏰ 闹钟提醒', { body: alarm.label, icon:'', tag: 'alarm-'+(alarm._id||alarm.id), requireInteraction: true }); } catch(e) {}
+      }
+      notifyToast.value = { show:true, title:'⏰ '+alarm.label, desc:'提醒时间：'+alarm.date+' '+alarm.time, closing:false };
+      if (notifyTimeout) clearTimeout(notifyTimeout);
+      notifyTimeout = setTimeout(closeNotifyToast, 8000);
+      tryPlaySound();
+    };
+
+    const closeNotifyToast = function() {
+      notifyToast.value.closing = true;
+      setTimeout(function() { notifyToast.value.show = false; notifyToast.value.closing = false; }, 300);
+      if (notifyTimeout) { clearTimeout(notifyTimeout); notifyTimeout = null; }
+    };
+
+    // ==================== ALARM CHECKER ====================
+    let alarmInterval = null;
+
+    const checkAlarms = function() {
+      var n = new Date();
+      var currentDate = fmtDate(n);
+      var currentTime = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+      var changed = false;
+
+      var updated = alarms.value.map(function(alarm) {
+        if (alarm.dismissed || alarm.triggered) return alarm;
+        var alarmDateTime;
+        try { alarmDateTime = new Date(alarm.date+'T'+alarm.time+':00'); } catch(e) { return alarm; }
+        if (isNaN(alarmDateTime.getTime())) return alarm;
+
+        var diffMs = alarmDateTime.getTime() - n.getTime();
+        var diffMins = Math.floor(diffMs / 60000);
+        var diffHours = Math.floor(diffMs / 3600000);
+        var diffDays = Math.floor(diffMs / 86400000);
+
+        var newRinging = alarm.ringing, newSoon = alarm.soon;
+        var newCountdown = alarm.countdownText;
+        var newTriggered = alarm.triggered;
+        var newNotified = alarm._notified;
+        var shouldNotify = false;
+
+        if (diffMs < -300000) {
+          newRinging = false; newSoon = false; newCountdown = '已过期';
+        } else if (diffMs < 0) {
+          newRinging = true; newSoon = false; newCountdown = '⏰ 正在提醒！';
+          if (!alarm._notified) { newNotified = true; shouldNotify = true; }
+        } else {
+          newRinging = false;
+          if (diffDays > 0) { newCountdown = '还有 '+diffDays+' 天'; newSoon = false; }
+          else if (diffHours > 0) { newCountdown = '还有 '+diffHours+' 小时 '+(diffMins%60)+' 分钟'; newSoon = diffHours<1; }
+          else if (diffMins > 0) { newCountdown = '还有 '+diffMins+' 分钟'; newSoon = diffMins<=15; }
+          else { newCountdown = '即将提醒'; newSoon = true; }
+        }
+
+        if (alarm.date===currentDate && alarm.time===currentTime && !alarm.triggered) {
+          newRinging = true; newTriggered = true; newNotified = true; newCountdown = '⏰ 正在提醒！';
+          shouldNotify = true;
+          if (alarm._id && !String(alarm._id).startsWith('local_')) { op_updateAlarm(alarm._id,{triggered:true}).catch(function(){}); }
+        }
+
+        if (shouldNotify) triggerNotification(alarm);
+
+        if (newRinging !== alarm.ringing || newSoon !== alarm.soon || newCountdown !== alarm.countdownText ||
+            newTriggered !== alarm.triggered || newNotified !== alarm._notified) {
+          changed = true;
+          return Object.assign({}, alarm, {
+            ringing: newRinging, soon: newSoon, countdownText: newCountdown,
+            triggered: newTriggered, _notified: newNotified
+          });
+        }
+        return alarm;
+      });
+
+      if (changed) alarms.value = updated;
+    };
+
+    const tryPlaySound = function() {
+      try {
+        var ctx = new (window.AudioContext||window.webkitAudioContext)();
+        var playBeep = function(freq,start,dur) {
+          var osc=ctx.createOscillator(), gain=ctx.createGain();
+          osc.type='sine'; osc.frequency.setValueAtTime(freq,start);
+          gain.gain.setValueAtTime(0.15,start); gain.gain.exponentialRampToValueAtTime(0.001,start+dur);
+          osc.connect(gain); gain.connect(ctx.destination); osc.start(start); osc.stop(start+dur);
+        };
+        for (var i=0;i<4;i++) { playBeep(880,ctx.currentTime+i*0.38,0.18); playBeep(660,ctx.currentTime+i*0.38+0.19,0.18); }
+      } catch(e) {}
+    };
+
+    const requestNotificationPermission = function() {
+      try { if ('Notification' in window && Notification.permission==='default') Notification.requestPermission(); } catch(e) {}
+    };
+
+    // ============================================================
+    //  INITIALIZATION — Direct DB access (bypass cloud functions)
+    // ============================================================
+    async function initializeApp() {
+      isLoading.value = true;
+      loadingText.value = '连接数据库...';
+
+      log('Starting initialization... Strategy: Direct DB via Web SDK');
+      log('SDK loaded: ' + (typeof cloudbase !== 'undefined'));
+      log('cbApp initialized: ' + !!cbApp);
+      log('ENV_ID: ' + ENV_ID);
+
+      if (!cbApp) {
+        log('SDK not available, falling back to local');
+        syncStatus.value = 'local';
+        loadLocalData();
+        if (tasks.value.length === 0) seedDemoData();
+        showSyncBanner('SDK 未加载，使用本地存储', 'syncing', 5000);
+        isLoading.value = false;
+        return;
+      }
+
+      // Anonymous login is required before any DB access
+      loadingText.value = '验证中...';
+      try {
+        log('Performing anonymous sign-in...');
+        await cbApp.auth().signInAnonymously();
+        log('Anonymous login OK');
+      } catch (authErr) {
+        log('Anonymous login FAILED: ' + (authErr.message || authErr));
+        syncStatus.value = 'local';
+        loadLocalData();
+        if (tasks.value.length === 0) seedDemoData();
+        showSyncBanner('登陆失败，使用本地存储', 'syncing', 5000);
+        isLoading.value = false;
+        return;
+      }
+
+      // Direct database test (with timeout)
+      loadingText.value = '连接数据...';
+      try {
+        log('Testing direct DB connection...');
+        var testCol = cbApp.database().collection('tasks');
+
+        var dbPromise = testCol.limit(1).get();
+        var timeoutPromise = new Promise(function(_, reject) {
+          setTimeout(function() { reject(new Error('数据库连接超时（10秒）')); }, 10000);
+        });
+        var testResult = await Promise.race([dbPromise, timeoutPromise]);
+        log('DB connection OK, got ' + (testResult.data ? testResult.data.length : 0) + ' test rows');
+
+        // Load real data
+        loadingText.value = '加载中...';
+        var [taskData, alarmData] = await Promise.all([op_loadTasks(), op_loadAlarms()]);
+
+        connMode.value = 'cloudfunc';
+        syncStatus.value = 'connected';
+        tasks.value = taskData.length > 0 ? taskData.map(normalizeTaskFromDB) : [];
+        alarms.value = alarmData.map(normalizeAlarmFromDB);
+
+        // Seed demo data if empty (first time use — check cloud, not localStorage!)
+        var cloudSeeded = false;
+        try {
+          var seedCheck = await cbApp.database().collection('alarms')
+            .where({ label: '__cloud_seeded__' }).limit(1).get();
+          cloudSeeded = seedCheck.data && seedCheck.data.length > 0;
+        } catch(e) { /* ignore */ }
+
+        if (tasks.value.length === 0 && !cloudSeeded) {
+          log('Seeding initial data to cloud (first time ever)...');
+          seedDemoData();
+          try {
+            for (var i=0;i<tasks.value.length;i++) {
+              var t = Object.assign({}, tasks.value[i]);
+              delete t._id; delete t.id;
+              await op_addTask(t);
+            }
+            // Store seed marker in cloud (alarms collection as config store)
+            await cbApp.database().collection('alarms').add({
+              label: '__cloud_seeded__',
+              date: '2000-01-01',
+              time: '00:00',
+              dismissed: true,
+              triggered: true
+            });
+            var fresh = await op_loadTasks();
+            tasks.value = fresh.map(normalizeTaskFromDB);
+            log('Seed complete: ' + tasks.value.length + ' tasks uploaded');
+          } catch(seedErr) {
+            log('Seed upload failed: ' + seedErr.message);
+          }
+        }
+
+        startPolling();
+        showSyncBanner('已连接，数据自动同步', 'success', 3000);
+        log('SUCCESS: Connected via direct DB!');
+        isLoading.value = false;
+        return; // SUCCESS!
+
+      } catch(dbErr) {
+        var errMsg = dbErr.message || dbErr;
+        log('Direct DB FAILED: ' + errMsg);
+        console.warn('[Init] DB connection failed:', dbErr);
+        showSyncBanner('连接失败: ' + errMsg, 'syncing', 10000);
+      }
+
+      // ---------- FALLBACK: Local Storage ----------
+      log('All cloud strategies failed, using local storage');
+      syncStatus.value = 'local';
+      loadingText.value = '加载本地...';
+      loadLocalData();
+      if (tasks.value.length === 0) seedDemoData();
+      showSyncBanner('云端暂不可用，使用本地存储', 'syncing', 5000);
+      log('FALLBACK: Using local storage mode');
+      isLoading.value = false;
+    }
+
+    // Keyboard shortcut: Toggle debug panel
+    function onKeyDown(e) {
+      if (e.shiftKey && (e.key==='d'||e.key==='D')) {
+        showDebug.value = !showDebug.value;
+      }
+    }
+
+    onMounted(function() {
+      document.addEventListener('keydown', onKeyDown);
+      requestNotificationPermission();
+      initializeApp().then(function() {
+        checkAlarms();
+        alarmInterval = setInterval(checkAlarms, 15000);
+      });
+    });
+
+    onUnmounted(function() {
+      if (alarmInterval) clearInterval(alarmInterval);
+      if (pollTimer) clearInterval(pollTimer);
+      document.removeEventListener('keydown', onKeyDown);
+    });
+
+    // Local backup whenever data changes (debounced to avoid high-frequency triggers)
+    let saveTimer = null;
+    watch([tasks, alarms], function() {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveLocalData, 500);
+    }, { deep: true });
+
+    return {
+      tasks, alarms, filter, searchQuery, categoryFilter, priorityFilter,
+      showAddDialog, showAlarmDialog, showCalendarDialog, editingTaskId, dialogTitle, dialogConfirmText, notifyToast,
+      isLoading, loadingText, syncStatus, syncStatusClass, syncStatusText, syncBanner,
+      form, alarmForm,
+      completedCount, urgentCount, totalTasks, activeAlarmsCount,
+      hasActiveFilter, filteredTasks, categoryStats,
+      normalizeDate, normalizeTime, fmtDateString, todayDisplay,
+      categoryLabel, priorityLabel, priorityTheme,
+      openAddDialog, openEditDialog, handleTaskConfirm,
+      deleteTask, toggleTask, doCheckIn, undoCheckIn, openCalendar, resetForm,
+      openAlarmDialog, handleAlarmConfirm, dismissAlarm, resetAlarmForm,
+      closeNotifyToast, connMode, showDebug, debugLog,
+      popupBody, autosizeConfig,
+      calendarTask, calYear, calMonth, calWeekDays, calDates,
+      calPrevMonth, calNextMonth, calToggleDate,
+      categoryOptions, priorityOptions, checkInModeOptions
+    };
+  }
+});
+
+app.use(TDesign);
+app.mount('#app');
+</script>
+
+</body>
+</html>

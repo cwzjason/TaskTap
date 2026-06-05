@@ -2,6 +2,12 @@
 
 一个基于 Vue 3 + TDesign 的单页面应用，支持**任务管理、打卡追踪、闹钟提醒**，可纯本地使用或接入 CloudBase 云端同步。
 
+## 在线体验
+
+👉 **[https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html](https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html)**
+
+打开即可使用，注册账号后数据自动云端同步，支持多设备访问。
+
 ## 快速开始
 
 最简单的方式：**直接用浏览器打开 `task-reminder.html`**

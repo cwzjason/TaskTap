@@ -87,6 +87,7 @@ body > .t-popup { z-index: 3000 !important; }
   display: flex; align-items: center; justify-content: center;
 }
 .login-card {
+  position: relative;
   background: var(--surface-white);
   border-radius: 20px;
   padding: 40px 36px;
@@ -164,6 +165,10 @@ body > .t-popup { z-index: 3000 !important; }
 .user-dropdown-item:hover { background: var(--td-bg-color-container-hover); color: var(--text-primary); }
 .user-dropdown-item.danger:hover { background: #fff1f0; color: var(--danger); }
 .user-dropdown-item .t-icon { flex-shrink: 0; }
+.lang-switcher { display: flex; align-items: center; gap: 4px; margin-right: 8px; }
+.lang-btn { background: none; border: 1px solid var(--border-light); border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; color: var(--text-secondary); transition: all .15s; }
+.lang-btn:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+.lang-btn.active { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); font-weight: 600; }
 
 /* ===== Layout ===== */
 .app-container {
@@ -761,24 +766,29 @@ body::before {
   <!-- Login Overlay -->
   <div class="login-overlay" v-if="!isLoggedIn && !isLoading">
     <div class="login-card">
-      <h2>{{ isRegistering ? '📝 注册新账号' : '👋 欢迎回来' }}</h2>
-      <p class="login-sub">{{ isRegistering ? '创建你的个人账号，数据只有你自己能看到' : '登录你的个人账号' }}</p>
+      <div class="lang-switcher" style="position:absolute;top:16px;right:20px;">
+        <button :class="'lang-btn' + (locale === 'zh-CN' ? ' active' : '')" @click="switchLocale('zh-CN')">中</button>
+        <button :class="'lang-btn' + (locale === 'en-US' ? ' active' : '')" @click="switchLocale('en-US')">EN</button>
+        <button :class="'lang-btn' + (locale === 'ja-JP' ? ' active' : '')" @click="switchLocale('ja-JP')">日</button>
+      </div>
+      <h2>{{ isRegistering ? t('registerTitle') : t('loginTitle') }}</h2>
+      <p class="login-sub">{{ isRegistering ? t('registerSub') : t('loginSub') }}</p>
       <div class="login-error" :class="{ show: loginError }">{{ loginError }}</div>
       <form @submit.prevent="handleLogin" autocomplete="on">
         <div class="field">
-          <label>用户名</label>
-          <input v-model="loginForm.username" type="text" name="username" placeholder="请输入用户名（至少3位）" autocomplete="username" />
+          <label>{{ t('username') }}</label>
+          <input v-model="loginForm.username" type="text" name="username" :placeholder="t('usernamePlaceholder')" autocomplete="username" />
         </div>
         <div class="field">
-          <label>密码</label>
-          <input v-model="loginForm.password" type="password" name="password" placeholder="请输入密码（至少6位）" autocomplete="current-password" />
+          <label>{{ t('password') }}</label>
+          <input v-model="loginForm.password" type="password" name="password" :placeholder="t('passwordPlaceholder')" autocomplete="current-password" />
         </div>
         <button class="login-btn" type="submit" :disabled="loginLoading">
-          {{ loginLoading ? '处理中...' : (isRegistering ? '注册' : '登录') }}
+          {{ loginLoading ? t('processing') : (isRegistering ? t('register') : t('login')) }}
         </button>
       </form>
       <div class="login-toggle">
-        <a @click="toggleRegister">{{ isRegistering ? '已有账号？去登录' : '没有账号？立即注册' }}</a>
+        <a @click="toggleRegister">{{ isRegistering ? t('hasAccount') : t('noAccount') }}</a>
       </div>
     </div>
   </div>
@@ -808,38 +818,43 @@ body::before {
       <t-popup v-if="currentUser" trigger="click" placement="bottom-right" :overlay-style="{ minWidth: '180px' }">
         <div class="user-badge" style="cursor:pointer;">
           <div class="user-avatar">{{ (currentUser.user_metadata?.username || currentUser.user_metadata?.nickName || '?').charAt(0).toUpperCase() }}</div>
-          <span>{{ currentUser.user_metadata?.username || currentUser.user_metadata?.nickName || '用户' }}</span>
+          <span>{{ currentUser.user_metadata?.username || currentUser.user_metadata?.nickName || t('user') }}</span>
           <t-icon name="chevron-down" size="16px" style="color:var(--text-muted);margin-left:2px;" />
         </div>
         <template #content>
           <div class="user-dropdown">
             <div class="user-dropdown-info">
               <div class="user-dropdown-avatar">{{ (currentUser.user_metadata?.username || '?').charAt(0).toUpperCase() }}</div>
-              <div class="user-dropdown-name">{{ currentUser.user_metadata?.username || '用户' }}</div>
+              <div class="user-dropdown-name">{{ currentUser.user_metadata?.username || t('user') }}</div>
             </div>
             <div class="user-dropdown-divider"></div>
             <div class="user-dropdown-item" @click.stop="handleLogout">
-              <span>退出</span>
+              <span>{{ t('logout') }}</span>
               <t-icon name="poweroff" size="16px" />
             </div>
             <div class="user-dropdown-item danger" @click.stop="handleDeleteAccount">
-              <span>注销</span>
+              <span>{{ t('deleteAccount') }}</span>
               <t-icon name="delete" size="16px" />
             </div>
           </div>
         </template>
       </t-popup>
       <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">
+        <div class="lang-switcher">
+          <button :class="'lang-btn' + (locale === 'zh-CN' ? ' active' : '')" @click="switchLocale('zh-CN')">中</button>
+          <button :class="'lang-btn' + (locale === 'en-US' ? ' active' : '')" @click="switchLocale('en-US')">EN</button>
+          <button :class="'lang-btn' + (locale === 'ja-JP' ? ' active' : '')" @click="switchLocale('ja-JP')">日</button>
+        </div>
         <div :class="'sync-status ' + syncStatusClass">
           <span class="sync-dot"></span>
           {{ syncStatusText }}
         </div>
         <div class="header-actions">
           <t-button theme="default" variant="outline" @click="openAlarmDialog">
-            &#x23F0; 设置闹钟
+            {{ t('setAlarm') }}
           </t-button>
           <t-button theme="primary" @click="openAddDialog">
-            ＋ 新建任务
+            {{ t('newTask') }}
           </t-button>
         </div>
       </div>
@@ -851,28 +866,28 @@ body::before {
         <div class="stat-icon blue">📋</div>
         <div>
           <div class="stat-value">{{ tasks.length }}</div>
-          <div class="stat-label">全部任务</div>
+          <div class="stat-label">{{ t('allTasks') }}</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon green">✅</div>
         <div>
           <div class="stat-value">{{ completedCount }}</div>
-          <div class="label">已完成</div>
+          <div class="label">{{ t('completed') }}</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon purple">🔥</div>
         <div>
           <div class="stat-value">{{ urgentCount }}</div>
-          <div class="stat-label">紧急任务</div>
+          <div class="stat-label">{{ t('urgentTasks') }}</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon amber">&#x23F0;</div>
         <div>
           <div class="stat-value">{{ activeAlarmsCount }}</div>
-          <div class="stat-label">活跃闹钟</div>
+          <div class="stat-label">{{ t('activeAlarms') }}</div>
         </div>
       </div>
     </div>
@@ -882,28 +897,28 @@ body::before {
       <!-- Left: Task List -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">任务列表</div>
+          <div class="panel-title">{{ t('taskList') }}</div>
           <t-radio-group v-model="filter" size="small">
-            <t-radio-button value="all">全部</t-radio-button>
-            <t-radio-button value="pending">待处理</t-radio-button>
-            <t-radio-button value="completed">已完成</t-radio-button>
+            <t-radio-button value="all">{{ t('all') }}</t-radio-button>
+            <t-radio-button value="pending">{{ t('pending') }}</t-radio-button>
+            <t-radio-button value="completed">{{ t('completed') }}</t-radio-button>
           </t-radio-group>
         </div>
         <div class="panel-body">
           <!-- Toolbar -->
           <div class="toolbar">
-            <t-input v-model="searchQuery" placeholder="&#x1F50D; 搜索任务..." clearable />
-            <t-select :value="categoryFilter" @change="(v) => categoryFilter = v" placeholder="分类筛选" clearable :popup-props="popupBody">
-              <t-option value="work" label="💼 工作" />
-              <t-option value="personal" label="👤 个人" />
-              <t-option value="health" label="💚 健康" />
-              <t-option value="finance" label="💰 财务" />
-              <t-option value="other" label="📌 其他" />
+            <t-input v-model="searchQuery" :placeholder="t('searchTasks')" clearable />
+            <t-select :value="categoryFilter" @change="(v) => categoryFilter = v" :placeholder="t('categoryFilter')" clearable :popup-props="popupBody">
+              <t-option value="work" :label="t('cat_work')" />
+              <t-option value="personal" :label="t('cat_personal')" />
+              <t-option value="health" :label="t('cat_health')" />
+              <t-option value="finance" :label="t('cat_finance')" />
+              <t-option value="other" :label="t('cat_other')" />
             </t-select>
-            <t-select :value="priorityFilter" @change="(v) => priorityFilter = v" placeholder="优先级" clearable :popup-props="popupBody">
-              <t-option value="high" label="🔴 高" />
-              <t-option value="medium" label="🟡 中" />
-              <t-option value="low" label="🟢 低" />
+            <t-select :value="priorityFilter" @change="(v) => priorityFilter = v" :placeholder="t('priorityFilter')" clearable :popup-props="popupBody">
+              <t-option value="high" :label="t('pri_high')" />
+              <t-option value="medium" :label="t('pri_medium')" />
+              <t-option value="low" :label="t('pri_low')" />
             </t-select>
           </div>
 
@@ -930,7 +945,7 @@ body::before {
                   <div class="task-title">{{ task.title }}</div>
                   <div class="task-desc" v-if="task.description">{{ task.description }}</div>
                   <div class="task-meta">
-                    <span class="cat-tag checkin-tag">{{ task.checkInMode === 'counter' ? '🔢 计数' : '📋 每日' }} · {{ task.checkInProgress || 0 }}次</span>
+                    <span class="cat-tag checkin-tag">{{ task.checkInMode === 'counter' ? t('counter') : t('daily') }} · {{ task.checkInProgress || 0 }}{{ t('times') }}</span>
                     <span :class="'cat-tag ' + task.category">{{ categoryLabel(task.category) }}</span>
                   </div>
                 </div>
@@ -947,12 +962,12 @@ body::before {
                     @click="doCheckIn(task)"
                     :disabled="task.checkInMode !== 'counter' && (task.checkInHistory||[]).includes(fmtDateString())"
                   >
-                    {{ task.checkInMode === 'counter' ? '+1' : ((task.checkInHistory||[]).includes(fmtDateString()) ? '已打卡' : '打卡') }}
+                    {{ task.checkInMode === 'counter' ? '+1' : ((task.checkInHistory||[]).includes(fmtDateString()) ? t('checkedIn') : t('checkIn')) }}
                   </t-button>
                   <t-button theme="default" variant="text" size="small" @click="openCalendar(task)">📅</t-button>
-                  <t-button theme="default" variant="text" size="small" @click="openEditDialog(task)">编辑</t-button>
-                  <t-popconfirm content="确认删除此任务？" @confirm="() => deleteTask(task)">
-                    <t-button theme="danger" variant="text" size="small">删除</t-button>
+                  <t-button theme="default" variant="text" size="small" @click="openEditDialog(task)">{{ t('edit') }}</t-button>
+                  <t-popconfirm :content="t('confirmDeleteTask')" @confirm="() => deleteTask(task)">
+                    <t-button theme="danger" variant="text" size="small">{{ t('delete') }}</t-button>
                   </t-popconfirm>
                 </div>
               </template>
@@ -977,10 +992,10 @@ body::before {
                 </div>
                 <div class="task-actions" @click.stop>
                   <t-button theme="default" variant="text" size="small" @click="openEditDialog(task)">
-                    编辑
+                    {{ t('edit') }}
                   </t-button>
-                  <t-popconfirm content="确认删除此任务？" @confirm="() => deleteTask(task)">
-                    <t-button theme="danger" variant="text" size="small">删除</t-button>
+                  <t-popconfirm :content="t('confirmDeleteTask')" @confirm="() => deleteTask(task)">
+                    <t-button theme="danger" variant="text" size="small">{{ t('delete') }}</t-button>
                   </t-popconfirm>
                 </div>
               </template>
@@ -989,7 +1004,7 @@ body::before {
           <div v-else class="empty-state">
             <div class="empty-icon">📭</div>
             <div class="empty-text">
-              {{ hasActiveFilter ? '没有匹配的任务' : '暂无任务，点击上方按钮创建第一个任务吧！' }}
+              {{ hasActiveFilter ? t('noMatchTasks') : t('noTasks') }}
             </div>
           </div>
         </div>
@@ -1000,8 +1015,8 @@ body::before {
         <!-- Alarms Panel -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">闹钟提醒</div>
-            <t-button theme="primary" variant="text" size="small" @click="openAlarmDialog">＋ 添加</t-button>
+            <div class="panel-title">{{ t('alarmReminder') }}</div>
+            <t-button theme="primary" variant="text" size="small" @click="openAlarmDialog">{{ t('addAlarm') }}</t-button>
           </div>
           <div class="panel-body" style="padding-top: 12px;">
             <div class="alarm-list" v-if="alarms.length > 0">
@@ -1020,13 +1035,13 @@ body::before {
                   </div>
                 </div>
                 <t-button theme="danger" variant="text" size="small" @click="dismissAlarm(alarm)">
-                  {{ (alarm.ringing && !alarm.dismissed) ? '关闭' : '删除' }}
+                  {{ (alarm.ringing && !alarm.dismissed) ? t('close') : t('delete') }}
                 </t-button>
               </div>
             </div>
             <div v-else class="empty-state" style="padding:32px 20px;">
               <div class="empty-icon">🔕</div>
-              <div class="empty-text">暂无闹钟</div>
+              <div class="empty-text">{{ t('noAlarms') }}</div>
             </div>
           </div>
         </div>
@@ -1034,7 +1049,7 @@ body::before {
         <!-- Quick Stats Panel -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">任务分布</div>
+            <div class="panel-title">{{ t('taskDistribution') }}</div>
           </div>
           <div class="panel-body">
             <template v-if="totalTasks > 0">
@@ -1055,7 +1070,7 @@ body::before {
               </div>
             </template>
             <div v-else style="text-align:center;color:var(--text-muted);font-size:13px;padding:12px 0;">
-              暂无数据
+              {{ t('noData') }}
             </div>
           </div>
         </div>
@@ -1071,38 +1086,38 @@ body::before {
     @closed="resetForm"
   >
     <template #footer>
-      <t-button theme="default" @click="showAddDialog = false">取消</t-button>
+      <t-button theme="default" @click="showAddDialog = false">{{ t('cancel') }}</t-button>
       <t-button theme="primary" @click="handleTaskConfirm">
         {{ dialogConfirmText }}
       </t-button>
     </template>
     <div class="form-row">
       <div class="form-item" style="flex:2;">
-        <label>任务标题 <span style="color:var(--danger)">*</span></label>
-        <t-input v-model="form.title" placeholder="请输入任务标题" maxlength="100" />
+        <label>{{ t('taskTitle') }} <span style="color:var(--danger)">*</span></label>
+        <t-input v-model="form.title" :placeholder="t('taskTitlePlaceholder')" maxlength="100" />
       </div>
     </div>
     <div class="form-row">
       <div class="form-item">
-        <label>描述</label>
-        <t-textarea v-model="form.description" placeholder="任务详细描述（可选）" :autosize="autosizeConfig" maxlength="500" />
+        <label>{{ t('description') }}</label>
+        <t-textarea v-model="form.description" :placeholder="t('descPlaceholder')" :autosize="autosizeConfig" maxlength="500" />
       </div>
     </div>
     <div class="form-row">
       <div class="form-item">
-        <label>分类</label>
+        <label>{{ t('category') }}</label>
         <t-select
           v-model="form.category"
-          placeholder="选择分类"
+          :placeholder="t('selectCategory')"
           :popup-props="popupBody"
           :options="categoryOptions"
         />
       </div>
       <div class="form-item">
-        <label>优先级</label>
+        <label>{{ t('priority') }}</label>
         <t-select
           v-model="form.priority"
-          placeholder="选择优先级"
+          :placeholder="t('selectPriority')"
           :popup-props="popupBody"
           :options="priorityOptions"
         />
@@ -1110,19 +1125,19 @@ body::before {
     </div>
     <div class="form-row">
       <div class="form-item">
-        <label>截止日期</label>
+        <label>{{ t('dueDate') }}</label>
         <t-date-picker
           v-model="form.dueDate"
-          placeholder="选择日期"
+          :placeholder="t('selectDate')"
           clearable
           :popup-props="popupBody"
         />
       </div>
       <div class="form-item">
-        <label>截止时间</label>
+        <label>{{ t('dueTime') }}</label>
         <t-time-picker
           v-model="form.dueTime"
-          placeholder="选择时间"
+          :placeholder="t('selectTime')"
           clearable
           :popup-props="popupBody"
         />
@@ -1131,14 +1146,14 @@ body::before {
     <!-- 打卡设置 -->
     <div class="form-row" style="align-items:center;flex-wrap:wrap;gap:8px;">
       <div class="form-item" style="flex-shrink:0;">
-        <t-checkbox v-model="form.checkInEnabled">启用打卡（重复任务）</t-checkbox>
+        <t-checkbox v-model="form.checkInEnabled">{{ t('enableCheckIn') }}</t-checkbox>
       </div>
       <div class="form-item" style="width:120px;" v-show="form.checkInEnabled">
-        <label>目标次数</label>
+        <label>{{ t('goalCount') }}</label>
         <t-input-number v-model="form.checkInGoal" :min="1" :max="9999" theme="column" style="width:100%;" />
       </div>
       <div class="form-item" style="width:130px;" v-show="form.checkInEnabled">
-        <label>打卡模式</label>
+        <label>{{ t('checkInMode') }}</label>
         <t-select v-model="form.checkInMode" style="width:100%;" :options="checkInModeOptions" />
       </div>
     </div>
@@ -1147,7 +1162,7 @@ body::before {
   <!-- ===== CHECKIN CALENDAR DIALOG ===== -->
   <t-dialog
     v-model:visible="showCalendarDialog"
-    :header="'📅 ' + (calendarTask ? calendarTask.title : '打卡日历')"
+    :header="'📅 ' + (calendarTask ? calendarTask.title : t('checkInCalendar'))"
     width="380px"
     :footer="false"
   >
@@ -1155,7 +1170,7 @@ body::before {
       <!-- Month navigation -->
       <div class="cal-nav">
         <t-button variant="text" size="small" @click="calPrevMonth">◀</t-button>
-        <span class="cal-month-title">{{ calYear }} 年 {{ calMonth }} 月</span>
+        <span class="cal-month-title">{{ calYear }} {{ t('year') }} {{ calMonth }} {{ t('month') }}</span>
         <t-button variant="text" size="small" @click="calNextMonth">▶</t-button>
       </div>
       <!-- Weekday headers -->
@@ -1181,9 +1196,9 @@ body::before {
         </div>
       </div>
       <div class="cal-legend">
-        <span><span class="cal-dot-leg checked"></span> 已打卡</span>
-        <span><span class="cal-dot-leg today"></span> 今天</span>
-        <span><span class="cal-dot-leg normal"></span> 未打卡</span>
+        <span><span class="cal-dot-leg checked"></span> {{ t('checked') }}</span>
+        <span><span class="cal-dot-leg today"></span> {{ t('today') }}</span>
+        <span><span class="cal-dot-leg normal"></span> {{ t('notChecked') }}</span>
       </div>
     </div>
   </t-dialog>
@@ -1191,40 +1206,40 @@ body::before {
   <!-- ===== ADD ALARM DIALOG ===== -->
   <t-dialog
     v-model:visible="showAlarmDialog"
-    header="设置闹钟"
+    :header="t('setAlarmTitle')"
     width="480px"
     @closed="resetAlarmForm"
   >
     <template #footer>
-      <t-button theme="default" @click="showAlarmDialog = false">取消</t-button>
-      <t-button theme="primary" @click="handleAlarmConfirm">设置闹钟</t-button>
+      <t-button theme="default" @click="showAlarmDialog = false">{{ t('cancel') }}</t-button>
+      <t-button theme="primary" @click="handleAlarmConfirm">{{ t('setAlarmBtn') }}</t-button>
     </template>
     <div class="form-row">
       <div class="form-item">
-        <label>闹钟名称 <span style="color:var(--danger)">*</span></label>
-        <t-input v-model="alarmForm.label" placeholder="例如：团队周会提醒" maxlength="50" />
+        <label>{{ t('alarmName') }} <span style="color:var(--danger)">*</span></label>
+        <t-input v-model="alarmForm.label" :placeholder="t('alarmNamePlaceholder')" maxlength="50" />
       </div>
     </div>
     <div class="form-row">
       <div class="form-item">
-        <label>日期</label>
+        <label>{{ t('date') }}</label>
         <t-date-picker
           v-model="alarmForm.date"
-          placeholder="选择提醒日期"
+          :placeholder="t('selectAlarmDate')"
           :popup-props="popupBody"
         />
       </div>
       <div class="form-item">
-        <label>时间</label>
+        <label>{{ t('time') }}</label>
         <t-time-picker
           v-model="alarmForm.time"
-          placeholder="选择提醒时间"
+          :placeholder="t('selectAlarmTime')"
           :popup-props="popupBody"
         />
       </div>
     </div>
     <div style="padding:10px 0;font-size:12px;color:var(--text-muted);">
-      💡 提示：到达设定时间后，浏览器将弹出通知提醒您。所有已连接的用户都会看到相同的闹钟列表。
+      {{ t('alarmTip') }}
     </div>
   </t-dialog>
 
@@ -1284,8 +1299,477 @@ initCloudBaseSDK();
 
 const { createApp, ref, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
 
+// ============================================================
+//  I18N — LANGUAGE PACKS
+// ============================================================
+const LANG_PACKS = {
+  'zh-CN': {
+    // Login
+    registerTitle: '📝 注册新账号',
+    loginTitle: '👋 欢迎回来',
+    registerSub: '创建你的个人账号，数据只有你自己能看到',
+    loginSub: '登录你的个人账号',
+    username: '用户名',
+    password: '密码',
+    usernamePlaceholder: '请输入用户名（至少3位）',
+    passwordPlaceholder: '请输入密码（至少6位）',
+    processing: '处理中...',
+    register: '注册',
+    login: '登录',
+    hasAccount: '已有账号？去登录',
+    noAccount: '没有账号？立即注册',
+    enterUsername: '请输入用户名',
+    usernameMin3: '用户名至少3个字符',
+    passwordMin6: '密码至少6位',
+    sdkNotInit: 'SDK未初始化',
+    operationFailed: '操作失败',
+    registerSuccess: '注册成功！',
+    // Header
+    setAlarm: '⏰ 设置闹钟',
+    newTask: '＋ 新建任务',
+    // Stats
+    allTasks: '全部任务',
+    completed: '已完成',
+    urgentTasks: '紧急任务',
+    activeAlarms: '活跃闹钟',
+    // Task list
+    taskList: '任务列表',
+    all: '全部',
+    pending: '待处理',
+    searchTasks: '🔍 搜索任务...',
+    categoryFilter: '分类筛选',
+    priorityFilter: '优先级',
+    // Check-in
+    counter: '🔢 计数',
+    daily: '📋 每日',
+    times: '次',
+    checkedIn: '已打卡',
+    checkIn: '打卡',
+    // Task actions
+    edit: '编辑',
+    delete: '删除',
+    confirmDeleteTask: '确认删除此任务？',
+    noMatchTasks: '没有匹配的任务',
+    noTasks: '暂无任务，点击上方按钮创建第一个任务吧！',
+    // Dialog
+    taskTitle: '任务标题',
+    taskTitlePlaceholder: '请输入任务标题',
+    enterTaskTitle: '请输入任务标题',
+    description: '描述',
+    descPlaceholder: '任务详细描述（可选）',
+    category: '分类',
+    selectCategory: '选择分类',
+    priority: '优先级',
+    selectPriority: '选择优先级',
+    dueDate: '截止日期',
+    selectDate: '选择日期',
+    dueTime: '截止时间',
+    selectTime: '选择时间',
+    enableCheckIn: '启用打卡（重复任务）',
+    goalCount: '目标次数',
+    checkInMode: '打卡模式',
+    cancel: '取消',
+    newTaskDialog: '新建任务',
+    createTask: '创建任务',
+    editTask: '编辑任务',
+    saveChanges: '保存修改',
+    // Calendar
+    checkInCalendar: '打卡日历',
+    year: '年',
+    month: '月',
+    checked: '已打卡',
+    today: '今天',
+    notChecked: '未打卡',
+    weekdayNames: ['日','一','二','三','四','五','六'],
+    // Alarm
+    alarmReminder: '闹钟提醒',
+    addAlarm: '＋ 添加',
+    alarmName: '闹钟名称',
+    alarmNamePlaceholder: '例如：团队周会提醒',
+    date: '日期',
+    selectAlarmDate: '选择提醒日期',
+    time: '时间',
+    selectAlarmTime: '选择提醒时间',
+    alarmTip: '💡 提示：到达设定时间后，浏览器将弹出通知提醒您。所有已连接的用户都会看到相同的闹钟列表。',
+    close: '关闭',
+    noAlarms: '暂无闹钟',
+    setAlarmTitle: '设置闹钟',
+    setAlarmBtn: '设置闹钟',
+    alarmSuccess: '闹钟设置成功（已同步到云端）',
+    alarmLocal: '闹钟已保存（本地模式）',
+    enterAlarmName: '请输入闹钟名称',
+    selectDateTime: '请选择日期和时间',
+    // Task distribution
+    taskDistribution: '任务分布',
+    noData: '暂无数据',
+    // Sync status
+    synced: '已同步',
+    connecting: '连接中...',
+    offline: '离线',
+    localOnly: '仅本地',
+    // User
+    user: '用户',
+    logout: '退出',
+    logoutConfirm: '确定要退出当前账号吗？下次登录可恢复数据。',
+    deleteAccount: '注销',
+    deleteAccountPrompt: '注销账号将永久删除您的所有数据，此操作不可恢复！\n\n请输入密码以确认注销：',
+    deleteAccountFinalConfirm: '⚠️ 最后确认：注销账号后所有数据将被永久删除，无法恢复！确定继续？',
+    deleteAccountFailed: '注销失败',
+    accountDeleted: '账号已注销，感谢使用！',
+    // Categories
+    cat_work: '💼 工作',
+    cat_personal: '👤 个人',
+    cat_health: '💚 健康',
+    cat_finance: '💰 财务',
+    cat_other: '📌 其他',
+    uncategorized: '未分类',
+    // Priorities
+    pri_high: '🔴 高优先级',
+    pri_medium: '🟡 中优先级',
+    pri_low: '🟢 低优先级',
+    pri_high_short: '高优先级',
+    pri_medium_short: '中优先级',
+    pri_low_short: '低优先级',
+    unknown: '未知',
+    // Check-in modes
+    mode_daily: '📆 每天一次',
+    mode_counter: '🔢 不限次数',
+    // Loading
+    loadingConnect: '连接中...',
+    // Demo data
+    demo_task1: '完成季度报告',
+    demo_task1_desc: '整理Q2数据并撰写分析',
+    demo_task2: '预约牙科检查',
+    demo_task3: '缴纳房租',
+    demo_task3_desc: '本月房租和水电',
+    demo_task4: '阅读《深度工作》',
+    demo_task4_desc: '至少读完第三章',
+    demo_task5: '健身房训练',
+    demo_task5_desc: '背部和二头肌训练日',
+    // Task operations
+    taskCompleted: '🎉 任务已达成！',
+    taskUpdated: '任务已更新（已同步到云端）',
+    taskCreated: '任务创建成功（已同步到云端）',
+    taskLocalOp: '操作完成（本地模式）',
+    taskDeleted: '任务已删除',
+    taskDeletedLocal: '任务已删除（本地）',
+    taskDone: '任务已完成 ✓',
+    taskReopened: '任务已重新打开',
+    alreadyCheckedIn: '今天已经打卡过了！',
+    checkInNth: '第 {n} 次打卡！',
+    checkInCounterProgress: '✅ +1！已完成 {n} / {goal}，还剩 {r} 次',
+    checkInGoalDone: '🎉 恭喜！已完成全部 {goal} 次，任务完成！',
+    checkInSuccessDaily: '✅ 打卡成功！已坚持 {n} 天，还剩 {r} 天',
+    undoCheckIn: '已撤销一次打卡（当前 {n} / {goal}）',
+    alarmLocalRemoved: '闹钟已本地移除，云端同步可能失败',
+    alarmClosed: '闹钟已关闭',
+    alarmDeleted: '闹钟已删除',
+  },
+  'en-US': {
+    registerTitle: '📝 Create Account',
+    loginTitle: '👋 Welcome Back',
+    registerSub: 'Create your personal account, your data stays private',
+    loginSub: 'Sign in to your account',
+    username: 'Username',
+    password: 'Password',
+    usernamePlaceholder: 'Enter username (min 3 chars)',
+    passwordPlaceholder: 'Enter password (min 6 chars)',
+    processing: 'Processing...',
+    register: 'Sign Up',
+    login: 'Sign In',
+    hasAccount: 'Already have an account? Sign In',
+    noAccount: "Don't have an account? Sign Up",
+    enterUsername: 'Please enter username',
+    usernameMin3: 'Username must be at least 3 characters',
+    passwordMin6: 'Password must be at least 6 characters',
+    sdkNotInit: 'SDK not initialized',
+    operationFailed: 'Operation failed',
+    registerSuccess: 'Account created!',
+    setAlarm: '⏰ Set Alarm',
+    newTask: '＋ New Task',
+    allTasks: 'All Tasks',
+    completed: 'Completed',
+    urgentTasks: 'Urgent',
+    activeAlarms: 'Active Alarms',
+    taskList: 'Task List',
+    all: 'All',
+    pending: 'Pending',
+    searchTasks: '🔍 Search tasks...',
+    categoryFilter: 'Category',
+    priorityFilter: 'Priority',
+    counter: '🔢 Counter',
+    daily: '📋 Daily',
+    times: '×',
+    checkedIn: 'Done',
+    checkIn: 'Check In',
+    edit: 'Edit',
+    delete: 'Delete',
+    confirmDeleteTask: 'Delete this task?',
+    noMatchTasks: 'No matching tasks',
+    noTasks: 'No tasks yet. Click the button above to create your first task!',
+    taskTitle: 'Task Title',
+    taskTitlePlaceholder: 'Enter task title',
+    enterTaskTitle: 'Please enter task title',
+    description: 'Description',
+    descPlaceholder: 'Task description (optional)',
+    category: 'Category',
+    selectCategory: 'Select category',
+    priority: 'Priority',
+    selectPriority: 'Select priority',
+    dueDate: 'Due Date',
+    selectDate: 'Select date',
+    dueTime: 'Due Time',
+    selectTime: 'Select time',
+    enableCheckIn: 'Enable Check-in (recurring task)',
+    goalCount: 'Goal Count',
+    checkInMode: 'Check-in Mode',
+    cancel: 'Cancel',
+    newTaskDialog: 'New Task',
+    createTask: 'Create Task',
+    editTask: 'Edit Task',
+    saveChanges: 'Save Changes',
+    checkInCalendar: 'Check-in Calendar',
+    year: '',
+    month: '',
+    checked: 'Checked',
+    today: 'Today',
+    notChecked: 'Not yet',
+    weekdayNames: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    alarmReminder: 'Alarms',
+    addAlarm: '＋ Add',
+    alarmName: 'Alarm Name',
+    alarmNamePlaceholder: 'e.g. Team meeting reminder',
+    date: 'Date',
+    selectAlarmDate: 'Select alarm date',
+    time: 'Time',
+    selectAlarmTime: 'Select alarm time',
+    alarmTip: '💡 Tip: Browser notifications will appear at the set time. All connected users see the same alarm list.',
+    close: 'Close',
+    noAlarms: 'No alarms',
+    setAlarmTitle: 'Set Alarm',
+    setAlarmBtn: 'Set Alarm',
+    alarmSuccess: 'Alarm set (synced to cloud)',
+    alarmLocal: 'Alarm saved (local mode)',
+    enterAlarmName: 'Please enter alarm name',
+    selectDateTime: 'Please select date and time',
+    taskDistribution: 'Task Distribution',
+    noData: 'No data',
+    synced: 'Synced',
+    connecting: 'Connecting...',
+    offline: 'Offline',
+    localOnly: 'Local Only',
+    user: 'User',
+    logout: 'Logout',
+    logoutConfirm: 'Are you sure you want to sign out? Your data will be restored on next login.',
+    deleteAccount: 'Delete',
+    deleteAccountPrompt: 'Deleting your account will permanently erase all your data. This cannot be undone!\n\nEnter your password to confirm:',
+    deleteAccountFinalConfirm: '⚠️ Final warning: All data will be permanently deleted. Are you sure?',
+    deleteAccountFailed: 'Account deletion failed',
+    accountDeleted: 'Account deleted. Thank you!',
+    cat_work: '💼 Work',
+    cat_personal: '👤 Personal',
+    cat_health: '💚 Health',
+    cat_finance: '💰 Finance',
+    cat_other: '📌 Other',
+    uncategorized: 'Uncategorized',
+    pri_high: '🔴 High',
+    pri_medium: '🟡 Medium',
+    pri_low: '🟢 Low',
+    pri_high_short: 'High',
+    pri_medium_short: 'Medium',
+    pri_low_short: 'Low',
+    unknown: 'Unknown',
+    mode_daily: '📆 Once Daily',
+    mode_counter: '🔢 Unlimited',
+    loadingConnect: 'Connecting...',
+    demo_task1: 'Complete Q2 Report',
+    demo_task1_desc: 'Compile Q2 data and write analysis',
+    demo_task2: 'Book Dentist Appointment',
+    demo_task3: 'Pay Rent',
+    demo_task3_desc: 'Monthly rent and utilities',
+    demo_task4: 'Read "Deep Work"',
+    demo_task4_desc: 'Finish at least chapter 3',
+    demo_task5: 'Gym Workout',
+    demo_task5_desc: 'Back and biceps day',
+    // Task operations
+    taskCompleted: '🎉 Task completed!',
+    taskUpdated: 'Task updated (synced to cloud)',
+    taskCreated: 'Task created (synced to cloud)',
+    taskLocalOp: 'Done (local mode)',
+    taskDeleted: 'Task deleted',
+    taskDeletedLocal: 'Task deleted (local)',
+    taskDone: 'Task completed ✓',
+    taskReopened: 'Task reopened',
+    alreadyCheckedIn: "Already checked in today!",
+    checkInNth: '#{n} check-in!',
+    checkInCounterProgress: '✅ +1! Done {n} / {goal}, {r} to go',
+    checkInGoalDone: '🎉 Congrats! All {goal} done, task complete!',
+    checkInSuccessDaily: '✅ Checked in! {n} days streak, {r} to go',
+    undoCheckIn: 'Undo check-in ({n} / {goal})',
+    alarmLocalRemoved: 'Alarm removed locally, cloud sync may have failed',
+    alarmClosed: 'Alarm dismissed',
+    alarmDeleted: 'Alarm deleted',
+  },
+  'ja-JP': {
+    registerTitle: '📝 新規登録',
+    loginTitle: '👋 おかえりなさい',
+    registerSub: '個人アカウントを作成、データはあなただけに表示',
+    loginSub: 'アカウントにログイン',
+    username: 'ユーザー名',
+    password: 'パスワード',
+    usernamePlaceholder: 'ユーザー名を入力（3文字以上）',
+    passwordPlaceholder: 'パスワードを入力（6文字以上）',
+    processing: '処理中...',
+    register: '登録',
+    login: 'ログイン',
+    hasAccount: 'アカウントをお持ちですか？ログイン',
+    noAccount: 'アカウントなし？新規登録',
+    enterUsername: 'ユーザー名を入力してください',
+    usernameMin3: 'ユーザー名は3文字以上必要です',
+    passwordMin6: 'パスワードは6文字以上必要です',
+    sdkNotInit: 'SDKが初期化されていません',
+    operationFailed: '操作に失敗しました',
+    registerSuccess: '登録完了！',
+    setAlarm: '⏰ アラーム設定',
+    newTask: '＋ 新しいタスク',
+    allTasks: '全タスク',
+    completed: '完了',
+    urgentTasks: '緊急',
+    activeAlarms: 'アクティブ',
+    taskList: 'タスク一覧',
+    all: 'すべて',
+    pending: '未処理',
+    searchTasks: '🔍 タスク検索...',
+    categoryFilter: 'カテゴリ',
+    priorityFilter: '優先度',
+    counter: '🔢 カウンター',
+    daily: '📋 毎日',
+    times: '回',
+    checkedIn: '完了',
+    checkIn: 'チェックイン',
+    edit: '編集',
+    delete: '削除',
+    confirmDeleteTask: 'このタスクを削除しますか？',
+    noMatchTasks: '一致するタスクなし',
+    noTasks: 'タスクがありません。上のボタンから最初のタスクを作成しましょう！',
+    taskTitle: 'タスク名',
+    taskTitlePlaceholder: 'タスク名を入力',
+    enterTaskTitle: 'タスク名を入力してください',
+    description: '説明',
+    descPlaceholder: 'タスクの詳細（任意）',
+    category: 'カテゴリ',
+    selectCategory: 'カテゴリ選択',
+    priority: '優先度',
+    selectPriority: '優先度選択',
+    dueDate: '期限日',
+    selectDate: '日付選択',
+    dueTime: '期限時刻',
+    selectTime: '時刻選択',
+    enableCheckIn: 'チェックインを有効にする（繰り返しタスク）',
+    goalCount: '目標回数',
+    checkInMode: 'チェックイン方式',
+    cancel: 'キャンセル',
+    newTaskDialog: '新しいタスク',
+    createTask: '作成',
+    editTask: 'タスク編集',
+    saveChanges: '保存',
+    checkInCalendar: 'チェックインカレンダー',
+    year: '年',
+    month: '月',
+    checked: '完了',
+    today: '今日',
+    notChecked: '未完了',
+    weekdayNames: ['日','月','火','水','木','金','土'],
+    alarmReminder: 'アラーム',
+    addAlarm: '＋ 追加',
+    alarmName: 'アラーム名',
+    alarmNamePlaceholder: '例：チーム会議リマインダー',
+    date: '日付',
+    selectAlarmDate: 'リマインド日付を選択',
+    time: '時刻',
+    selectAlarmTime: 'リマインド時刻を選択',
+    alarmTip: '💡 ヒント：設定時刻になるとブラウザ通知が表示されます。接続中の全ユーザーに同じアラームリストが表示されます。',
+    close: '閉じる',
+    noAlarms: 'アラームなし',
+    setAlarmTitle: 'アラーム設定',
+    setAlarmBtn: '設定',
+    alarmSuccess: 'アラーム設定完了（クラウド同期）',
+    alarmLocal: 'アラーム保存（ローカルモード）',
+    enterAlarmName: 'アラーム名を入力してください',
+    selectDateTime: '日付と時刻を選択してください',
+    taskDistribution: 'タスク分布',
+    noData: 'データなし',
+    synced: '同期済み',
+    connecting: '接続中...',
+    offline: 'オフライン',
+    localOnly: 'ローカルのみ',
+    user: 'ユーザー',
+    logout: 'ログアウト',
+    logoutConfirm: '現在のアカウントからログアウトしますか？次回ログイン時にデータは復元されます。',
+    deleteAccount: '退会',
+    deleteAccountPrompt: 'アカウントを削除すると全データが永久に消去されます。元に戻せません！\n\n確認のためパスワードを入力してください：',
+    deleteAccountFinalConfirm: '⚠️ 最終確認：全データが永久に削除されます。続けますか？',
+    deleteAccountFailed: 'アカウント削除に失敗しました',
+    accountDeleted: 'アカウントが削除されました。ご利用ありがとうございました！',
+    cat_work: '💼 仕事',
+    cat_personal: '👤 個人',
+    cat_health: '💚 健康',
+    cat_finance: '💰 財務',
+    cat_other: '📌 その他',
+    uncategorized: '未分類',
+    pri_high: '🔴 高',
+    pri_medium: '🟡 中',
+    pri_low: '🟢 低',
+    pri_high_short: '高',
+    pri_medium_short: '中',
+    pri_low_short: '低',
+    unknown: '不明',
+    mode_daily: '📆 毎日1回',
+    mode_counter: '🔢 回数制限なし',
+    loadingConnect: '接続中...',
+    demo_task1: '四半期レポート作成',
+    demo_task1_desc: 'Q2データをまとめて分析を執筆',
+    demo_task2: '歯科検診の予約',
+    demo_task3: '家賃の支払い',
+    demo_task3_desc: '今月の家賃と光熱費',
+    demo_task4: '『ディープワーク』を読む',
+    demo_task4_desc: '少なくとも第3章まで',
+    demo_task5: 'ジムトレーニング',
+    demo_task5_desc: '背中と上腕のトレーニング日',
+    // Task operations
+    taskCompleted: '🎉 タスク完了！',
+    taskUpdated: 'タスク更新（クラウド同期）',
+    taskCreated: 'タスク作成（クラウド同期）',
+    taskLocalOp: '完了（ローカルモード）',
+    taskDeleted: 'タスク削除',
+    taskDeletedLocal: 'タスク削除（ローカル）',
+    taskDone: 'タスク完了 ✓',
+    taskReopened: 'タスクを再開',
+    alreadyCheckedIn: '今日はもうチェックイン済みです！',
+    checkInNth: '#{n}回目チェックイン！',
+    checkInCounterProgress: '✅ +1！{n} / {goal}完了、残り{r}回',
+    checkInGoalDone: '🎉 全{goal}回達成、タスク完了！',
+    checkInSuccessDaily: '✅ チェックイン！{n}日連続、残り{r}日',
+    undoCheckIn: 'チェックイン取消（{n} / {goal}）',
+    alarmLocalRemoved: 'アラームをローカル削除、クラウド同期失敗の可能性',
+    alarmClosed: 'アラーム解除',
+    alarmDeleted: 'アラーム削除',
+  }
+};
+
 const app = createApp({
   setup() {
+    // ==================== I18N ====================
+    const locale = ref(localStorage.getItem('tasktap_lang') || 'zh-CN');
+    function t(key) {
+      var pack = LANG_PACKS[locale.value] || LANG_PACKS['zh-CN'];
+      return pack[key] || LANG_PACKS['zh-CN'][key] || key;
+    }
+    function switchLocale(lang) {
+      locale.value = lang;
+      localStorage.setItem('tasktap_lang', lang);
+    }
+
     // ==================== STATE ====================
     const tasks = ref([]);
     const alarms = ref([]);
@@ -1299,7 +1783,7 @@ const app = createApp({
     const editingTaskDocId = ref(null);
     const notifyToast = ref({ show: false, title: '', desc: '', closing: false });
     const isLoading = ref(true);
-    const loadingText = ref('连接中...');
+    const loadingText = ref(t('loadingConnect'));
     const syncStatus = ref('connecting'); // connecting | connected | offline | local
     const syncBanner = ref({ show: false, text: '', type: 'syncing' });
 
@@ -1342,15 +1826,15 @@ const app = createApp({
       var uname = (loginForm.value.username || '').trim();
       var pwd = (loginForm.value.password || '').trim();
 
-      if (!uname) { loginError.value = '请输入用户名'; return; }
-      if (uname.length < 3) { loginError.value = '用户名至少3个字符'; return; }
-      if (!pwd || pwd.length < 6) { loginError.value = '密码至少6位'; return; }
+      if (!uname) { loginError.value = t('enterUsername'); return; }
+      if (uname.length < 3) { loginError.value = t('usernameMin3'); return; }
+      if (!pwd || pwd.length < 6) { loginError.value = t('passwordMin6'); return; }
 
       loginLoading.value = true;
       loginError.value = '';
 
       try {
-        if (!cbApp) throw new Error('SDK未初始化');
+        if (!cbApp) throw new Error(t('sdkNotInit'));
 
         // 1. Ensure we have anonymous login for DB access
         await ensureAnonymous();
@@ -1367,7 +1851,7 @@ const app = createApp({
         });
         var res = cfResult.result;
         if (!res || !res.ok) {
-          throw new Error((res && res.error) || '操作失败');
+          throw new Error((res && res.error) || t('operationFailed'));
         }
 
         // 3. Login successful
@@ -1380,7 +1864,7 @@ const app = createApp({
         loginError.value = '';
 
         if (isRegistering.value) {
-          TDesign.MessagePlugin.success('注册成功！');
+          TDesign.MessagePlugin.success(t('registerSuccess'));
         }
 
         loadAppData();
@@ -1391,7 +1875,7 @@ const app = createApp({
     };
 
     const handleLogout = async function() {
-      if (!confirm('确定要退出当前账号吗？下次登录可恢复数据。')) return;
+      if (!confirm(t('logoutConfirm'))) return;
       currentUser.value = null;
       isLoggedIn.value = false;
       localStorage.removeItem('tasktap_user');
@@ -1413,14 +1897,14 @@ const app = createApp({
       var uname = currentUser.value && currentUser.value.user_metadata && currentUser.value.user_metadata.username;
       if (!uname) return;
 
-      var pwd = prompt('注销账号将永久删除您的所有数据，此操作不可恢复！\n\n请输入密码以确认注销：');
+      var pwd = prompt(t('deleteAccountPrompt'));
       if (pwd === null) return;
       if (!pwd || pwd.length < 6) {
-        TDesign.MessagePlugin.warning('密码至少6位');
+        TDesign.MessagePlugin.warning(t('passwordMin6'));
         return;
       }
 
-      if (!confirm('⚠️ 最后确认：注销账号后所有数据将被永久删除，无法恢复！确定继续？')) return;
+      if (!confirm(t('deleteAccountFinalConfirm'))) return;
 
       try {
         var result = await cbApp.callFunction({
@@ -1429,10 +1913,10 @@ const app = createApp({
         });
         var res = result.result;
         if (!res || !res.ok) {
-          throw new Error((res && res.error) || '注销失败');
+          throw new Error((res && res.error) || t('deleteAccountFailed'));
         }
 
-        TDesign.MessagePlugin.success('账号已注销，感谢使用！');
+        TDesign.MessagePlugin.success(t('accountDeleted'));
         // Clear local state
         currentUser.value = null;
         isLoggedIn.value = false;
@@ -1449,7 +1933,7 @@ const app = createApp({
           await ensureAnonymous();
         } catch(e) {}
       } catch(e) {
-        TDesign.MessagePlugin.error(e.message || '注销失败');
+        TDesign.MessagePlugin.error(e.message || t('deleteAccountFailed'));
       }
     };
 
@@ -1518,33 +2002,39 @@ const app = createApp({
     const popupBody = { attach: 'body' };
     const autosizeConfig = { minRows: 2, maxRows: 4 };
 
-    // Static option lists — passed via :options to avoid TDesign t-option slot bugs in dialogs
-    const categoryOptions = [
-      { value: 'work', label: '💼 工作' },
-      { value: 'personal', label: '👤 个人' },
-      { value: 'health', label: '💚 健康' },
-      { value: 'finance', label: '💰 财务' },
-      { value: 'other', label: '📌 其他' }
-    ];
-    const priorityOptions = [
-      { value: 'high', label: '🔴 高优先级' },
-      { value: 'medium', label: '🟡 中优先级' },
-      { value: 'low', label: '🟢 低优先级' }
-    ];
-    const checkInModeOptions = [
-      { value: 'daily', label: '📆 每天一次' },
-      { value: 'counter', label: '🔢 不限次数' }
-    ];
+    // Static option lists — computed for i18n reactivity
+    const categoryOptions = computed(function() {
+      return [
+        { value: 'work', label: t('cat_work') },
+        { value: 'personal', label: t('cat_personal') },
+        { value: 'health', label: t('cat_health') },
+        { value: 'finance', label: t('cat_finance') },
+        { value: 'other', label: t('cat_other') }
+      ];
+    });
+    const priorityOptions = computed(function() {
+      return [
+        { value: 'high', label: t('pri_high') },
+        { value: 'medium', label: t('pri_medium') },
+        { value: 'low', label: t('pri_low') }
+      ];
+    });
+    const checkInModeOptions = computed(function() {
+      return [
+        { value: 'daily', label: t('mode_daily') },
+        { value: 'counter', label: t('mode_counter') }
+      ];
+    });
 
     // ==================== SYNC STATUS ====================
     const syncStatusClass = computed(function() { return syncStatus.value; });
 
     const syncStatusText = computed(function() {
       switch(syncStatus.value) {
-        case 'connected': return '已同步';
-        case 'connecting': return '连接中...';
-        case 'offline': return '离线';
-        case 'local': return '仅本地';
+        case 'connected': return t('synced');
+        case 'connecting': return t('connecting');
+        case 'offline': return t('offline');
+        case 'local': return t('localOnly');
         default: return '';
       }
     });
@@ -1803,19 +2293,19 @@ const app = createApp({
       tomorrow.setDate(today.getDate() + 1);
 
       tasks.value = [
-        { _id:'demo_1001', id:'demo_1001', title:'完成季度报告', description:'整理Q2数据并撰写分析',
+        { _id:'demo_1001', id:'demo_1001', title:t('demo_task1'), description:t('demo_task1_desc'),
           category:'work', priority:'high', dueDate:fmtDate(today), dueTime:'17:00',
           completed:false, createdAt:Date.now()-3600000, updatedAt:Date.now() },
-        { _id:'demo_1002', id:'demo_1002', title:'预约牙科检查', description:'',
+        { _id:'demo_1002', id:'demo_1002', title:t('demo_task2'), description:'',
           category:'health', priority:'medium', dueDate:fmtDate(tomorrow), dueTime:'10:00',
           completed:false, createdAt:Date.now()-7200000, updatedAt:Date.now() },
-        { _id:'demo_1003', id:'demo_1003', title:'缴纳房租', description:'本月房租和水电',
+        { _id:'demo_1003', id:'demo_1003', title:t('demo_task3'), description:t('demo_task3_desc'),
           category:'finance', priority:'high', dueDate:fmtDate(today), dueTime:'',
           completed:false, createdAt:Date.now()-10800000, updatedAt:Date.now() },
-        { _id:'demo_1004', id:'demo_1004', title:'阅读《深度工作》', description:'至少读完第三章',
+        { _id:'demo_1004', id:'demo_1004', title:t('demo_task4'), description:t('demo_task4_desc'),
           category:'personal', priority:'low', dueDate:'', dueTime:'',
           completed:false, createdAt:Date.now()-14400000, updatedAt:Date.now() },
-        { _id:'demo_1005', id:'demo_1005', title:'健身房训练', description:'背部和二头肌训练日',
+        { _id:'demo_1005', id:'demo_1005', title:t('demo_task5'), description:t('demo_task5_desc'),
           category:'health', priority:'medium', dueDate:fmtDate(today), dueTime:'19:00',
           completed:true, createdAt:Date.now()-18000000, updatedAt:Date.now() }
       ];
@@ -1845,12 +2335,12 @@ const app = createApp({
     }
 
     function categoryLabel(cat) {
-      var map = { work: '💼 工作', personal: '👤 个人', health: '💚 健康', finance: '💰 财务', other: '📌 其他' };
-      return map[cat] || cat || '未分类';
+      var map = { work: t('cat_work'), personal: t('cat_personal'), health: t('cat_health'), finance: t('cat_finance'), other: t('cat_other') };
+      return map[cat] || cat || t('uncategorized');
     }
     function priorityLabel(p) {
-      var m = { high: '高优先级', medium: '中优先级', low: '低优先级' };
-      return m[p] || p || '未知';
+      var m = { high: t('pri_high_short'), medium: t('pri_medium_short'), low: t('pri_low_short') };
+      return m[p] || p || t('unknown');
     }
     function priorityTheme(p) {
       var m = { high: 'danger', medium: 'warning', low: 'success' };
@@ -1863,10 +2353,10 @@ const app = createApp({
              String(d.getDate()).padStart(2,'0');
     }
     function fmtDateString() { return fmtDate(new Date()); }
-    const weekdays = ['日','一','二','三','四','五','六'];
     const todayDisplay = computed(function() {
       var d = new Date();
-      return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 星期' + weekdays[d.getDay()];
+      var wk = t('weekdayNames');
+      return d.getFullYear() + t('year') + (d.getMonth()+1) + t('month') + d.getDate() + '日 ' + wk[d.getDay()];
     });
 
     // ==================== COMPUTED ====================
@@ -1915,11 +2405,11 @@ const app = createApp({
 
     const categoryStats = computed(function() {
       var cats = [
-        { key: 'work', label: '💼 工作', color: '#2563EB', count: 0 },
-        { key: 'personal', label: '👤 个人', color: '#7C3AED', count: 0 },
-        { key: 'health', label: '💚 健康', color: '#10B981', count: 0 },
-        { key: 'finance', label: '💰 财务', color: '#D97706', count: 0 },
-        { key: 'other', label: '📌 其他', color: '#64748B', count: 0 },
+        { key: 'work', label: t('cat_work'), color: '#2563EB', count: 0 },
+        { key: 'personal', label: t('cat_personal'), color: '#7C3AED', count: 0 },
+        { key: 'health', label: t('cat_health'), color: '#10B981', count: 0 },
+        { key: 'finance', label: t('cat_finance'), color: '#D97706', count: 0 },
+        { key: 'other', label: t('cat_other'), color: '#64748B', count: 0 },
       ];
       var total = totalTasks.value;
       cats.forEach(function(c) {
@@ -1932,8 +2422,8 @@ const app = createApp({
     // ==================== DIALOG HANDLERS ====================
     // Dedicated refs for dialog display — completely decoupled from business logic
     // so that @close/resetForm never mutates the dialog's header/button text.
-    const dialogTitle = ref('新建任务');
-    const dialogConfirmText = ref('创建任务');
+    const dialogTitle = ref(t('newTaskDialog'));
+    const dialogConfirmText = ref(t('createTask'));
     // Internal flag for create vs update logic — NOT exposed to template
     const isEditing = ref(false);
 
@@ -1942,7 +2432,7 @@ const app = createApp({
     const calendarTask = ref(null);
     const calYear = ref(2026);
     const calMonth = ref(1);
-    const calWeekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    const calWeekDays = computed(function() { return t('weekdayNames'); });
     
     // Computed calendar dates for the current month view
     const calDates = computed(function() {
@@ -2026,7 +2516,7 @@ const app = createApp({
       task.checkInProgress = task.checkInHistory.length;
       if (task.checkInProgress >= task.checkInGoal) {
         task.completed = true;
-        TDesign.MessagePlugin.success('🎉 任务已达成！');
+        TDesign.MessagePlugin.success(t('taskCompleted'));
       } else {
         task.completed = false;
       }
@@ -2052,8 +2542,8 @@ const app = createApp({
       editingTaskId.value = null;
       editingTaskDocId.value = null;
       form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily' };
-      dialogTitle.value = '新建任务';
-      dialogConfirmText.value = '创建任务';
+      dialogTitle.value = t('newTaskDialog');
+      dialogConfirmText.value = t('createTask');
       showAddDialog.value = true;
     };
 
@@ -2072,14 +2562,14 @@ const app = createApp({
         checkInGoal: Number(task.checkInGoal) || 21,
         checkInMode: task.checkInMode || 'daily'
       };
-      dialogTitle.value = '编辑任务';
-      dialogConfirmText.value = '保存修改';
+      dialogTitle.value = t('editTask');
+      dialogConfirmText.value = t('saveChanges');
       showAddDialog.value = true;
     };
 
     const handleTaskConfirm = async function() {
       if (!form.value.title.trim()) {
-        TDesign.MessagePlugin.warning('请输入任务标题');
+        TDesign.MessagePlugin.warning(t('enterTaskTitle'));
         return;
       }
 
@@ -2104,7 +2594,7 @@ const app = createApp({
           }
           var idx = tasks.value.findIndex(function(t) { return t._id === editingTaskDocId.value; });
           if (idx !== -1) Object.assign(tasks.value[idx], taskData);
-          TDesign.MessagePlugin.success('任务已更新（已同步到云端）');
+          TDesign.MessagePlugin.success(t('taskUpdated'));
         } else {
           // Create
           taskData.completed = false;
@@ -2118,7 +2608,7 @@ const app = createApp({
           }
           var newTask = normalizeTaskFromDB(Object.assign({}, taskData, { _id: res._id }));
           tasks.value.unshift(newTask);
-          TDesign.MessagePlugin.success('任务创建成功（已同步到云端）');
+          TDesign.MessagePlugin.success(t('taskCreated'));
         }
         saveLocalData();
       } catch(e) {
@@ -2135,7 +2625,7 @@ const app = createApp({
           tasks.value.unshift(Object.assign({}, taskData));
         }
         saveLocalData();
-        TDesign.MessagePlugin.warning('操作完成（本地模式）');
+        TDesign.MessagePlugin.warning(t('taskLocalOp'));
       }
       // resetForm() will be called automatically by @closed after close animation
       showAddDialog.value = false;
@@ -2150,14 +2640,14 @@ const app = createApp({
           return (t._id !== task._id) && (t.id !== task.id);
         });
         saveLocalData();
-        TDesign.MessagePlugin.success('任务已删除');
+        TDesign.MessagePlugin.success(t('taskDeleted'));
       } catch(e) {
         console.error('Delete failed:', e);
         tasks.value = tasks.value.filter(function(t) {
           return (t._id !== task._id) && (t.id !== task.id);
         });
         saveLocalData();
-        TDesign.MessagePlugin.success('任务已删除（本地）');
+        TDesign.MessagePlugin.success(t('taskDeletedLocal'));
       }
     };
 
@@ -2172,7 +2662,7 @@ const app = createApp({
         console.error('Toggle failed:', e);
         saveLocalData();
       }
-      TDesign.MessagePlugin.info(task.completed ? '任务已完成 ✓' : '任务已重新打开');
+      TDesign.MessagePlugin.info(task.completed ? t('taskDone') : t('taskReopened'));
     };
 
     // Check-in (打卡)
@@ -2187,7 +2677,7 @@ const app = createApp({
       if (!isCounter) {
         var alreadyChecked = (task.checkInHistory || []).some(function(d) { return d === today; });
         if (alreadyChecked) {
-          TDesign.MessagePlugin.warning('今天已经打卡过了！');
+          TDesign.MessagePlugin.warning(t('alreadyCheckedIn'));
           return;
         }
       }
@@ -2200,13 +2690,13 @@ const app = createApp({
 
       if (task.checkInProgress >= task.checkInGoal) {
         task.completed = true;
-        var prefix = isCounter ? '第 ' + task.checkInProgress + ' 次打卡！' : '';
-        TDesign.MessagePlugin.success(prefix + '🎉 恭喜！已完成全部 ' + task.checkInGoal + ' 次，任务完成！');
+        var prefix = isCounter ? t('checkInNth').replace('{n}', task.checkInProgress) : '';
+        TDesign.MessagePlugin.success(prefix + t('checkInGoalDone').replace('{goal}', task.checkInGoal));
       } else {
         var remaining = task.checkInGoal - task.checkInProgress;
         var msg = isCounter
-          ? '✅ +1！已完成 ' + task.checkInProgress + ' / ' + task.checkInGoal + '，还剩 ' + remaining + ' 次'
-          : '✅ 打卡成功！已坚持 ' + task.checkInProgress + ' 天，还剩 ' + remaining + ' 天';
+          ? t('checkInCounterProgress').replace('{n}', task.checkInProgress).replace('{goal}', task.checkInGoal).replace('{r}', remaining)
+          : t('checkInSuccessDaily').replace('{n}', task.checkInProgress).replace('{r}', remaining);
         TDesign.MessagePlugin.success(msg);
       }
 
@@ -2235,7 +2725,7 @@ const app = createApp({
       task.checkInProgress = task.checkInHistory.length;
       task.completed = false;
 
-      TDesign.MessagePlugin.info('已撤销一次打卡（当前 ' + task.checkInProgress + ' / ' + task.checkInGoal + '）');
+      TDesign.MessagePlugin.info(t('undoCheckIn').replace('{n}', task.checkInProgress).replace('{goal}', task.checkInGoal));
 
       try {
         if (task._id && !String(task._id).startsWith('local_')) {
@@ -2266,15 +2756,15 @@ const app = createApp({
 
     const handleAlarmConfirm = async function() {
       if (!alarmForm.value.label.trim()) {
-        TDesign.MessagePlugin.warning('请输入闹钟名称');
+        TDesign.MessagePlugin.warning(t('enterAlarmName'));
         return;
       }
 
       var d = normalizeDate(alarmForm.value.date);
-      var t = normalizeTime(alarmForm.value.time);
-      if (!d || !t) { TDesign.MessagePlugin.warning('请选择日期和时间'); return; }
+      var tm = normalizeTime(alarmForm.value.time);
+      if (!d || !tm) { TDesign.MessagePlugin.warning(t('selectDateTime')); return; }
 
-      var alarmData = { label: alarmForm.value.label.trim(), date: d, time: t, dismissed: false, triggered: false };
+      var alarmData = { label: alarmForm.value.label.trim(), date: d, time: tm, dismissed: false, triggered: false };
 
       try {
         var res;
@@ -2286,7 +2776,7 @@ const app = createApp({
         var na = normalizeAlarmFromDB(Object.assign({}, alarmData, { _id: res._id }));
         alarms.value.push(na);
         sortAlarms();
-        TDesign.MessagePlugin.success('闹钟设置成功（已同步到云端）');
+        TDesign.MessagePlugin.success(t('alarmSuccess'));
       } catch(e) {
         console.error('Add alarm failed:', e);
         alarmData._id = 'local_alarm_' + Date.now();
@@ -2294,7 +2784,7 @@ const app = createApp({
         alarms.value.push(Object.assign({}, alarmData, { ringing:false, soon:false, countdownText:'', _notified:false }));
         sortAlarms();
         saveLocalData();
-        TDesign.MessagePlugin.warning('闹钟已保存（本地模式）');
+        TDesign.MessagePlugin.warning(t('alarmLocal'));
       }
       // resetAlarmForm() will be called automatically by @closed after close animation
       showAlarmDialog.value = false;
@@ -2336,11 +2826,11 @@ const app = createApp({
       saveLocalData();
 
       if (!cloudSuccess && alarm._id && !String(alarm._id).startsWith('local_')) {
-        TDesign.MessagePlugin.warning('闹钟已本地移除，云端同步可能失败（按 Shift+D 查看日志）');
+        TDesign.MessagePlugin.warning(t('alarmLocalRemoved'));
       } else if (isRinging) {
-        TDesign.MessagePlugin.info('闹钟已关闭');
+        TDesign.MessagePlugin.info(t('alarmClosed'));
       } else {
-        TDesign.MessagePlugin.success('闹钟已删除');
+        TDesign.MessagePlugin.success(t('alarmDeleted'));
       }
     };
 
@@ -2627,7 +3117,9 @@ const app = createApp({
       categoryOptions, priorityOptions, checkInModeOptions,
       // Auth
       currentUser, isLoggedIn, isRegistering, loginError, loginLoading, loginForm,
-      handleLogin, handleLogout, handleDeleteAccount, toggleRegister
+      handleLogin, handleLogout, handleDeleteAccount, toggleRegister,
+      // I18N
+      locale, t, switchLocale
     };
   }
 });

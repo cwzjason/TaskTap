@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>我的事项</title>
+<title>TaskTap</title>
 <!-- TDesign Vue Next -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tdesign-vue-next@1.20.0/dist/tdesign.min.css">
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
@@ -78,6 +78,92 @@ body > .t-popup { z-index: 3000 !important; }
 .t-tag { font-weight: 500 !important; border-radius: 6px !important; }
 .t-checkbox { flex-shrink: 0; }
 .t-popconfirm__inner { max-width: 240px; }
+
+/* ===== Login Overlay ===== */
+.login-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(15,23,42,0.6);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+}
+.login-card {
+  background: var(--surface-white);
+  border-radius: 20px;
+  padding: 40px 36px;
+  width: 420px; max-width: 92vw;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.25);
+  animation: slideUp 0.35s ease;
+}
+@keyframes slideUp { from { opacity:0; transform: translateY(24px); } to { opacity:1; transform: translateY(0); } }
+.login-card h2 {
+  margin: 0 0 4px; font-size: 24px; font-weight: 700; color: var(--text-primary);
+}
+.login-card .login-sub {
+  font-size: 14px; color: var(--text-muted); margin-bottom: 28px;
+}
+.login-card .login-error {
+  background: #FEF2F2; color: #DC2626; font-size: 13px;
+  padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; display: none;
+}
+.login-card .login-error.show { display: block; }
+.login-card .field { margin-bottom: 16px; }
+.login-card .field label {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); margin-bottom: 6px;
+}
+.login-card .field input {
+  width: 100%; box-sizing: border-box;
+  padding: 12px 14px; border: 1.5px solid var(--border-light);
+  border-radius: 12px; font-size: 15px; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.login-card .field input:focus {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+}
+.login-card .login-btn {
+  width: 100%; padding: 13px; margin-top: 8px;
+  background: linear-gradient(135deg, var(--primary-blue), var(--accent-purple));
+  color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: opacity .2s, transform .2s;
+}
+.login-card .login-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+.login-card .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.login-card .login-toggle {
+  text-align: center; margin-top: 18px; font-size: 14px; color: var(--text-muted);
+}
+.login-card .login-toggle a {
+  color: var(--accent-purple); cursor: pointer; font-weight: 500; text-decoration: none;
+}
+.login-card .login-toggle a:hover { text-decoration: underline; }
+
+/* ===== User Badge ===== */
+.user-badge {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary-blue-pale);
+  padding: 6px 14px 6px 10px;
+  border-radius: 24px; font-size: 14px; font-weight: 500;
+  color: var(--primary-blue);
+}
+.user-badge .user-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-blue), var(--accent-purple));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+}
+.user-badge .logout-link {
+  margin-left: 4px; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1;
+}
+.user-badge .logout-link:hover { color: var(--danger); }
+.user-dropdown { padding: 4px 0; }
+.user-dropdown-info { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.user-dropdown-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+.user-dropdown-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.user-dropdown-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+.user-dropdown-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 14px; cursor: pointer; font-size: 14px; color: var(--text-secondary); border-radius: 6px; margin: 0 4px; transition: all .15s; }
+.user-dropdown-item:hover { background: var(--td-bg-color-container-hover); color: var(--text-primary); }
+.user-dropdown-item.danger:hover { background: #fff1f0; color: var(--danger); }
+.user-dropdown-item .t-icon { flex-shrink: 0; }
 
 /* ===== Layout ===== */
 .app-container {
@@ -672,6 +758,30 @@ body::before {
 <body>
 
 <div id="app">
+  <!-- Login Overlay -->
+  <div class="login-overlay" v-if="!isLoggedIn && !isLoading">
+    <div class="login-card">
+      <h2>{{ isRegistering ? '📝 注册新账号' : '👋 欢迎回来' }}</h2>
+      <p class="login-sub">{{ isRegistering ? '创建你的个人账号，数据只有你自己能看到' : '登录你的个人账号' }}</p>
+      <div class="login-error" :class="{ show: loginError }">{{ loginError }}</div>
+      <form @submit.prevent="handleLogin" autocomplete="on">
+        <div class="field">
+          <label>用户名</label>
+          <input v-model="loginForm.username" type="text" name="username" placeholder="请输入用户名（至少3位）" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input v-model="loginForm.password" type="password" name="password" placeholder="请输入密码（至少6位）" autocomplete="current-password" />
+        </div>
+        <button class="login-btn" type="submit" :disabled="loginLoading">
+          {{ loginLoading ? '处理中...' : (isRegistering ? '注册' : '登录') }}
+        </button>
+      </form>
+      <div class="login-toggle">
+        <a @click="toggleRegister">{{ isRegistering ? '已有账号？去登录' : '没有账号？立即注册' }}</a>
+      </div>
+    </div>
+  </div>
   <!-- Loading Overlay -->
   <div class="loading-overlay" v-if="isLoading">
     <div class="loading-spinner"></div>
@@ -691,10 +801,34 @@ body::before {
       <div class="header-left">
         <div class="header-logo">📋</div>
         <div>
-          <div class="header-title">我的事项</div>
+          <div class="header-title">TaskTap</div>
           <div class="header-subtitle">{{ todayDisplay }}</div>
         </div>
       </div>
+      <t-popup v-if="currentUser" trigger="click" placement="bottom-right" :overlay-style="{ minWidth: '180px' }">
+        <div class="user-badge" style="cursor:pointer;">
+          <div class="user-avatar">{{ (currentUser.user_metadata?.username || currentUser.user_metadata?.nickName || '?').charAt(0).toUpperCase() }}</div>
+          <span>{{ currentUser.user_metadata?.username || currentUser.user_metadata?.nickName || '用户' }}</span>
+          <t-icon name="chevron-down" size="16px" style="color:var(--text-muted);margin-left:2px;" />
+        </div>
+        <template #content>
+          <div class="user-dropdown">
+            <div class="user-dropdown-info">
+              <div class="user-dropdown-avatar">{{ (currentUser.user_metadata?.username || '?').charAt(0).toUpperCase() }}</div>
+              <div class="user-dropdown-name">{{ currentUser.user_metadata?.username || '用户' }}</div>
+            </div>
+            <div class="user-dropdown-divider"></div>
+            <div class="user-dropdown-item" @click.stop="handleLogout">
+              <span>退出</span>
+              <t-icon name="poweroff" size="16px" />
+            </div>
+            <div class="user-dropdown-item danger" @click.stop="handleDeleteAccount">
+              <span>注销</span>
+              <t-icon name="delete" size="16px" />
+            </div>
+          </div>
+        </template>
+      </t-popup>
       <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">
         <div :class="'sync-status ' + syncStatusClass">
           <span class="sync-dot"></span>
@@ -845,7 +979,7 @@ body::before {
                   <t-button theme="default" variant="text" size="small" @click="openEditDialog(task)">
                     编辑
                   </t-button>
-                  <t-popconfirm content="确认删除此任务？" @click="() => deleteTask(task)">
+                  <t-popconfirm content="确认删除此任务？" @confirm="() => deleteTask(task)">
                     <t-button theme="danger" variant="text" size="small">删除</t-button>
                   </t-popconfirm>
                 </div>
@@ -1124,6 +1258,8 @@ var ENV_ID = 'cwz-d2glf6xtm409cbb3a';
 // ============================================================
 var cbApp = null;
 
+var cbAuth = null;
+
 function initCloudBaseSDK() {
   try {
     if (typeof cloudbase === 'undefined') {
@@ -1134,7 +1270,8 @@ function initCloudBaseSDK() {
       env: ENV_ID,
       region: 'ap-shanghai'
     });
-    console.log('[CloudBase] SDK initialized with env:', ENV_ID, 'region: ap-shanghai');
+    cbAuth = cbApp.auth({ persistence: 'local' });
+    console.log('[CloudBase] SDK initialized with env:', ENV_ID);
     return cbApp;
   } catch(e) {
     console.error('[CloudBase] Init failed:', e);
@@ -1170,6 +1307,184 @@ const app = createApp({
 
     // Connection mode: 'cloudfunc' | 'local'
     const connMode = ref('local');
+
+    // ==================== AUTH STATE ====================
+    const currentUser = ref(null);
+    const isLoggedIn = ref(false);
+    const isRegistering = ref(false);
+    const loginError = ref('');
+    const loginLoading = ref(false);
+    const loginForm = ref({ username: '', password: '' });
+
+    // ==================== AUTH METHODS ====================
+    const toggleRegister = function() {
+      isRegistering.value = !isRegistering.value;
+      loginError.value = '';
+    };
+
+    // Ensure anonymous login (needed for DB access + cloud function calls)
+    const ensureAnonymous = async function() {
+      if (!cbAuth) return null;
+      try {
+        var { data, error } = await cbAuth.getSession();
+        if (data && data.session) return data.session;
+      } catch(e) { /* no session */ }
+      try {
+        var result = await cbAuth.signInAnonymously();
+        if (result && result.data) return result.data;
+      } catch(e) {
+        console.error('[Auth] Anonymous login failed:', e.message || e);
+      }
+      return null;
+    };
+
+    const handleLogin = async function() {
+      var uname = (loginForm.value.username || '').trim();
+      var pwd = (loginForm.value.password || '').trim();
+
+      if (!uname) { loginError.value = '请输入用户名'; return; }
+      if (uname.length < 3) { loginError.value = '用户名至少3个字符'; return; }
+      if (!pwd || pwd.length < 6) { loginError.value = '密码至少6位'; return; }
+
+      loginLoading.value = true;
+      loginError.value = '';
+
+      try {
+        if (!cbApp) throw new Error('SDK未初始化');
+
+        // 1. Ensure we have anonymous login for DB access
+        await ensureAnonymous();
+
+        // 2. Call cloud function to register/login
+        //    (cloud function gets openid from server-side context, no need to pass from frontend)
+        var cfResult = await cbApp.callFunction({
+          name: 'auth-api',
+          data: {
+            action: isRegistering.value ? 'register' : 'login',
+            username: uname,
+            password: pwd
+          }
+        });
+        var res = cfResult.result;
+        if (!res || !res.ok) {
+          throw new Error((res && res.error) || '操作失败');
+        }
+
+        // 3. Login successful
+        currentUser.value = { user_metadata: { username: uname } };
+        isLoggedIn.value = true;
+        // Save username to localStorage for session recovery
+        localStorage.setItem('tasktap_user', uname);
+        loginForm.value = { username: '', password: '' };
+        loginLoading.value = false;
+        loginError.value = '';
+
+        if (isRegistering.value) {
+          TDesign.MessagePlugin.success('注册成功！');
+        }
+
+        loadAppData();
+      } catch(e) {
+        loginError.value = (e.message || e);
+        loginLoading.value = false;
+      }
+    };
+
+    const handleLogout = async function() {
+      if (!confirm('确定要退出当前账号吗？下次登录可恢复数据。')) return;
+      currentUser.value = null;
+      isLoggedIn.value = false;
+      localStorage.removeItem('tasktap_user');
+      tasks.value = [];
+      alarms.value = [];
+      syncStatus.value = 'connecting';
+      isRegistering.value = false;
+      loginError.value = '';
+      // Re-do anonymous login so DB access still works for the next user
+      try {
+        if (cbAuth) await cbAuth.signOut();
+      } catch(e) { console.error('signOut error:', e); }
+      try {
+        await ensureAnonymous();
+      } catch(e) { console.error('re-anonymous login error:', e); }
+    };
+
+    const handleDeleteAccount = async function() {
+      var uname = currentUser.value && currentUser.value.user_metadata && currentUser.value.user_metadata.username;
+      if (!uname) return;
+
+      var pwd = prompt('注销账号将永久删除您的所有数据，此操作不可恢复！\n\n请输入密码以确认注销：');
+      if (pwd === null) return;
+      if (!pwd || pwd.length < 6) {
+        TDesign.MessagePlugin.warning('密码至少6位');
+        return;
+      }
+
+      if (!confirm('⚠️ 最后确认：注销账号后所有数据将被永久删除，无法恢复！确定继续？')) return;
+
+      try {
+        var result = await cbApp.callFunction({
+          name: 'auth-api',
+          data: { action: 'deleteAccount', username: uname, password: pwd }
+        });
+        var res = result.result;
+        if (!res || !res.ok) {
+          throw new Error((res && res.error) || '注销失败');
+        }
+
+        TDesign.MessagePlugin.success('账号已注销，感谢使用！');
+        // Clear local state
+        currentUser.value = null;
+        isLoggedIn.value = false;
+        localStorage.removeItem('tasktap_user');
+        tasks.value = [];
+        alarms.value = [];
+        syncStatus.value = 'connecting';
+        isRegistering.value = false;
+        loginError.value = '';
+        try {
+          if (cbAuth) await cbAuth.signOut();
+        } catch(e) {}
+        try {
+          await ensureAnonymous();
+        } catch(e) {}
+      } catch(e) {
+        TDesign.MessagePlugin.error(e.message || '注销失败');
+      }
+    };
+
+    const checkSession = async function() {
+      if (!cbAuth) return false;
+      try {
+        // Check if we have a saved username (our custom auth)
+        var savedUser = localStorage.getItem('tasktap_user');
+        if (!savedUser) return false;
+
+        // Ensure we have anonymous login for DB access
+        await ensureAnonymous();
+
+        // Sync data: migrate from old openid to current openid if needed
+        try {
+          var syncResult = await cbApp.callFunction({
+            name: 'auth-api',
+            data: { action: 'sync', username: savedUser }
+          });
+          if (syncResult.result && syncResult.result.ok && syncResult.result.migrated) {
+            log('Data synced: ' + syncResult.result.tasks + ' tasks, ' + syncResult.result.alarms + ' alarms');
+          }
+        } catch(syncErr) {
+          console.error('[checkSession] sync failed:', syncErr.message || syncErr);
+        }
+
+        // Restore user state
+        currentUser.value = { user_metadata: { username: savedUser } };
+        isLoggedIn.value = true;
+        return true;
+      } catch(e) {
+        log('Session check failed: ' + (e.message || e));
+        return false;
+      }
+    };
 
     // Debug
     const showDebug = ref(false);
@@ -1244,14 +1559,28 @@ const app = createApp({
 
     // ==================== DIRECT DATABASE OPERATIONS (via Web SDK) ====================
     // Bypass cloud functions entirely — use SDK's db directly (public read/write)
+    // All queries filter by username to ensure per-user data isolation
+
+    function currentUsername() {
+      return (currentUser.value && currentUser.value.user_metadata && currentUser.value.user_metadata.username) || '';
+    }
+
     async function op_loadTasks() {
-      var res = await cbApp.database().collection('tasks').orderBy('createdAt', 'desc').get();
-      return res.data || [];
+      var uname = currentUsername();
+      var query = cbApp.database().collection('tasks');
+      if (uname) query = query.where({ username: uname });
+      var res = await query.orderBy('createdAt', 'desc').get();
+      return (res.data || []).filter(function(doc) {
+        // Double-check: only return tasks belonging to current user
+        return !uname || doc.username === uname;
+      });
     }
 
     async function op_addTask(data) {
       var now = Date.now();
+      var uname = currentUsername();
       var doc = {
+        username: uname,
         title: String(data.title || '').trim(),
         description: data.description || '',
         category: data.category || 'work',
@@ -1295,15 +1624,20 @@ const app = createApp({
     }
 
     async function op_loadAlarms() {
-      var res = await cbApp.database().collection('alarms').orderBy('date', 'asc').orderBy('time', 'asc').get();
+      var uname = currentUsername();
+      var query = cbApp.database().collection('alarms');
+      if (uname) query = query.where({ username: uname });
+      var res = await query.orderBy('date', 'asc').orderBy('time', 'asc').get();
       // Filter out the cloud seed marker and dismissed alarms
       return (res.data || []).filter(function(doc) {
-        return doc.label !== '__cloud_seeded__' && !doc.dismissed;
+        return doc.label !== '__cloud_seeded__' && !doc.dismissed && (!uname || doc.username === uname);
       });
     }
 
     async function op_addAlarm(data) {
+      var uname = currentUsername();
       var doc = {
+        username: uname,
         label: String(data.label || '').trim(),
         date: String(data.date || ''),
         time: String(data.time || ''),
@@ -2118,54 +2452,79 @@ const app = createApp({
     // ============================================================
     async function initializeApp() {
       isLoading.value = true;
+      loadingText.value = '连接中...';
+
+      log('Starting initialization...');
+
+      if (!cbApp || !cbAuth) {
+        log('SDK not available');
+        syncStatus.value = 'local';
+        loadLocalData();
+        if (tasks.value.length === 0) seedDemoData();
+        isLoading.value = false;
+        return;
+      }
+
+      // First, do anonymous login for DB access
       loadingText.value = '连接数据库...';
-
-      log('Starting initialization... Strategy: Direct DB via Web SDK');
-      log('SDK loaded: ' + (typeof cloudbase !== 'undefined'));
-      log('cbApp initialized: ' + !!cbApp);
-      log('ENV_ID: ' + ENV_ID);
-
-      if (!cbApp) {
-        log('SDK not available, falling back to local');
-        syncStatus.value = 'local';
-        loadLocalData();
-        if (tasks.value.length === 0) seedDemoData();
-        showSyncBanner('SDK 未加载，使用本地存储', 'syncing', 5000);
-        isLoading.value = false;
-        return;
-      }
-
-      // Anonymous login is required before any DB access
-      loadingText.value = '验证中...';
       try {
-        log('Performing anonymous sign-in...');
-        await cbApp.auth().signInAnonymously();
+        await ensureAnonymous();
         log('Anonymous login OK');
-      } catch (authErr) {
-        log('Anonymous login FAILED: ' + (authErr.message || authErr));
-        syncStatus.value = 'local';
-        loadLocalData();
-        if (tasks.value.length === 0) seedDemoData();
-        showSyncBanner('登陆失败，使用本地存储', 'syncing', 5000);
-        isLoading.value = false;
-        return;
+      } catch(e) {
+        log('Anonymous login failed: ' + (e.message || e));
       }
 
-      // Direct database test (with timeout)
-      loadingText.value = '连接数据...';
-      try {
-        log('Testing direct DB connection...');
-        var testCol = cbApp.database().collection('tasks');
+      // Then check if user has a saved session
+      loadingText.value = '验证中...';
+      var sessionOk = await checkSession();
+      log('Session check: ' + sessionOk);
 
+      if (sessionOk) {
+        // Verify the saved user still exists in DB (cloud function check)
+        var savedUser = localStorage.getItem('tasktap_user');
+        try {
+          var verifyResult = await cbApp.callFunction({
+            name: 'auth-api',
+            data: { action: 'check', username: savedUser }
+          });
+          if (verifyResult.result && verifyResult.result.ok && verifyResult.result.exists) {
+            await loadAppData();
+          } else {
+            // User no longer exists, clear session and show login
+            log('Saved user not found in DB, showing login');
+            localStorage.removeItem('tasktap_user');
+            currentUser.value = null;
+            isLoggedIn.value = false;
+            syncStatus.value = 'connecting';
+            isLoading.value = false;
+          }
+        } catch(e) {
+          // Verification failed, still try to load data
+          log('User verify failed, proceeding anyway: ' + (e.message || e));
+          await loadAppData();
+        }
+      } else {
+        // Show login screen
+        syncStatus.value = 'connecting';
+        isLoading.value = false;
+        log('Waiting for user login...');
+      }
+    }
+
+    async function loadAppData() {
+      isLoading.value = true;
+      loadingText.value = '加载数据...';
+
+      try {
+        log('Loading data from cloud...');
+        var testCol = cbApp.database().collection('tasks');
         var dbPromise = testCol.limit(1).get();
         var timeoutPromise = new Promise(function(_, reject) {
           setTimeout(function() { reject(new Error('数据库连接超时（10秒）')); }, 10000);
         });
-        var testResult = await Promise.race([dbPromise, timeoutPromise]);
-        log('DB connection OK, got ' + (testResult.data ? testResult.data.length : 0) + ' test rows');
+        await Promise.race([dbPromise, timeoutPromise]);
+        log('DB connection OK');
 
-        // Load real data
-        loadingText.value = '加载中...';
         var [taskData, alarmData] = await Promise.all([op_loadTasks(), op_loadAlarms()]);
 
         connMode.value = 'cloudfunc';
@@ -2173,16 +2532,19 @@ const app = createApp({
         tasks.value = taskData.length > 0 ? taskData.map(normalizeTaskFromDB) : [];
         alarms.value = alarmData.map(normalizeAlarmFromDB);
 
-        // Seed demo data if empty (first time use — check cloud, not localStorage!)
+        // Seed demo data if first time (per user)
         var cloudSeeded = false;
         try {
-          var seedCheck = await cbApp.database().collection('alarms')
-            .where({ label: '__cloud_seeded__' }).limit(1).get();
+          var uname = currentUsername();
+          var seedQuery = cbApp.database().collection('alarms');
+          if (uname) seedQuery = seedQuery.where({ username: uname, label: '__cloud_seeded__' });
+          else seedQuery = seedQuery.where({ label: '__cloud_seeded__' });
+          var seedCheck = await seedQuery.limit(1).get();
           cloudSeeded = seedCheck.data && seedCheck.data.length > 0;
         } catch(e) { /* ignore */ }
 
         if (tasks.value.length === 0 && !cloudSeeded) {
-          log('Seeding initial data to cloud (first time ever)...');
+          log('Seeding initial demo data...');
           seedDemoData();
           try {
             for (var i=0;i<tasks.value.length;i++) {
@@ -2190,44 +2552,31 @@ const app = createApp({
               delete t._id; delete t.id;
               await op_addTask(t);
             }
-            // Store seed marker in cloud (alarms collection as config store)
             await cbApp.database().collection('alarms').add({
-              label: '__cloud_seeded__',
-              date: '2000-01-01',
-              time: '00:00',
-              dismissed: true,
-              triggered: true
+              username: currentUsername(), label: '__cloud_seeded__', date: '2000-01-01', time: '00:00',
+              dismissed: true, triggered: true
             });
             var fresh = await op_loadTasks();
             tasks.value = fresh.map(normalizeTaskFromDB);
-            log('Seed complete: ' + tasks.value.length + ' tasks uploaded');
+            log('Seed complete: ' + tasks.value.length + ' tasks');
           } catch(seedErr) {
             log('Seed upload failed: ' + seedErr.message);
           }
         }
 
         startPolling();
-        showSyncBanner('已连接，数据自动同步', 'success', 3000);
-        log('SUCCESS: Connected via direct DB!');
+        showSyncBanner('已连接，数据为你的个人数据', 'success', 3000);
+        log('SUCCESS: Data loaded for user');
         isLoading.value = false;
-        return; // SUCCESS!
-
       } catch(dbErr) {
         var errMsg = dbErr.message || dbErr;
-        log('Direct DB FAILED: ' + errMsg);
-        console.warn('[Init] DB connection failed:', dbErr);
-        showSyncBanner('连接失败: ' + errMsg, 'syncing', 10000);
+        log('DB load FAILED: ' + errMsg);
+        syncStatus.value = 'local';
+        loadLocalData();
+        if (tasks.value.length === 0) seedDemoData();
+        showSyncBanner('云端暂不可用，使用本地存储', 'syncing', 5000);
+        isLoading.value = false;
       }
-
-      // ---------- FALLBACK: Local Storage ----------
-      log('All cloud strategies failed, using local storage');
-      syncStatus.value = 'local';
-      loadingText.value = '加载本地...';
-      loadLocalData();
-      if (tasks.value.length === 0) seedDemoData();
-      showSyncBanner('云端暂不可用，使用本地存储', 'syncing', 5000);
-      log('FALLBACK: Using local storage mode');
-      isLoading.value = false;
     }
 
     // Keyboard shortcut: Toggle debug panel
@@ -2275,7 +2624,10 @@ const app = createApp({
       popupBody, autosizeConfig,
       calendarTask, calYear, calMonth, calWeekDays, calDates,
       calPrevMonth, calNextMonth, calToggleDate,
-      categoryOptions, priorityOptions, checkInModeOptions
+      categoryOptions, priorityOptions, checkInModeOptions,
+      // Auth
+      currentUser, isLoggedIn, isRegistering, loginError, loginLoading, loginForm,
+      handleLogin, handleLogout, handleDeleteAccount, toggleRegister
     };
   }
 });

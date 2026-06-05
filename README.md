@@ -1,4 +1,4 @@
-# NoteVibe — 我的事项
+# TaskTap
 
 一个基于 Vue 3 + TDesign 的单页面应用，支持**任务管理、打卡追踪、闹钟提醒**，可纯本地使用或接入 CloudBase 云端同步。
 
@@ -9,7 +9,7 @@
 ```bash
 # 克隆项目
 git clone https://github.com/cwzjason/NoteVibe.git
-cd NoteVibe
+cd TaskTap
 
 # 双击打开或用浏览器打开
 # Windows: start task-reminder.html
@@ -60,7 +60,7 @@ cd NoteVibe
 ## 项目结构
 
 ```
-NoteVibe/
+TaskTap/
 ├── task-reminder.html    # 主应用（单文件，开箱即用）
 ├── cloudfunctions/       # CloudBase 云函数（可选）
 └── task-api-backend/     # 后端 API（可选）

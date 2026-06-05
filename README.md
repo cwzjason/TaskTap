@@ -14,7 +14,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/cwzjason/NoteVibe.git
+git clone https://github.com/cwzjason/TaskTap.git
 cd TaskTap
 
 # 双击打开或用浏览器打开

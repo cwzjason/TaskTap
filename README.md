@@ -1,87 +1,93 @@
 # TaskTap
 
-一个基于 Vue 3 + TDesign 的单页面应用，支持**任务管理、打卡追踪、闹钟提醒**，可纯本地使用或接入 CloudBase 云端同步。
+[![中文](https://img.shields.io/badge/中文-README-red)](README_CN.md)
 
-## 在线体验
+A Vue 3 + TDesign single-page application for **task management, habit tracking, and alarm reminders**. Works fully offline or syncs across devices via CloudBase.
+
+## Live Demo
 
 👉 **[https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html](https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html)**
 
-打开即可使用，注册账号后数据自动云端同步，支持多设备访问。
+Open and use instantly. Register an account to enable automatic cloud sync across all your devices.
 
-## 快速开始
+## Quick Start
 
-最简单的方式：**直接用浏览器打开 `task-reminder.html`**
+The easiest way: **just open `task-reminder.html` in your browser.**
 
 ```bash
-# 克隆项目
+# Clone the repo
 git clone https://github.com/cwzjason/TaskTap.git
 cd TaskTap
 
-# 双击打开或用浏览器打开
+# Open in browser
 # Windows: start task-reminder.html
 # Mac: open task-reminder.html
 ```
 
-打开后即可使用，数据保存在浏览器 localStorage 中（本地模式）。
+Works immediately — data is stored in your browser's localStorage (local mode).
 
-## 功能一览
+## Features
 
-### 多语言支持 🌍
-- 支持**中文 / English / 日本語**三种语言切换
-- 语言偏好自动保存至 localStorage
-- 登录页和主界面均可一键切换语言
-- 全局约 100 个翻译 key，覆盖所有 UI 文本
+### Multi-language Support 🌍
+- Switch between **中文 / English / 日本語**
+- Language preference saved automatically to localStorage
+- Toggle languages on both login and main screens
+- ~100 translation keys covering all UI text
 
-### 用户认证
-- 注册 / 登录 / 退出 / 注销账号
-- SHA256 + 随机盐值密码加密，安全可靠
-- 云端数据按用户隔离（openid），互不可见
-- 支持本地模式（无需注册即可使用）
+### User Authentication
+- Register / Login / Logout / Delete account
+- SHA256 + random salt password encryption for security
+- Cloud data isolated per user (openid), invisible to others
+- Local mode available (no registration required)
 
-### 任务管理
-- 创建、编辑、删除任务
-- 分类：工作 / 个人 / 健康 / 财务 / 其他
-- 优先级：高 / 中 / 低
-- 搜索和多维度筛选
-- 完成标记
+### Task Management
+- Create, edit, and delete tasks
+- Categories: Work / Personal / Health / Finance / Other
+- Priorities: High / Medium / Low
+- Search and multi-dimensional filtering
+- Mark tasks as complete
 
-### 打卡系统
-- **每日打卡**：每天一次（适合跑步、阅读等每日习惯）
-- **计数打卡**：不限次数（适合看100个视频、做100道题等）
-- 圆形水球进度动画展示
-- 日历视图查看/修改任意天的打卡记录
-- +1 / -1 快速操作
+### Check-in System
+- **Daily Check-in**: Once per day (perfect for running, reading, and other daily habits)
+- **Count Check-in**: Unlimited times (great for watching 100 videos, solving 100 problems, etc.)
+- Circular water-ball progress animation
+- Calendar view to view/edit check-in records for any day
+- Quick +1 / -1 operations
 
-### 闹钟提醒
-- 自定义日期+时间闹钟
-- 倒计时显示
-- 浏览器通知提醒
+### Alarm Reminders
+- Custom date + time alarms
+- Countdown display
+- Browser notification alerts
 
-## 启用云端同步（可选）
+## Enable Cloud Sync (Optional)
 
-默认使用本地存储。如需多设备同步，配置 CloudBase：
+The app uses local storage by default. To sync across devices, configure CloudBase:
 
-1. 在 [CloudBase 控制台](https://console.cloud.tencent.com/tcb) 创建环境
-2. 创建 `tasks` 和 `alarms` 两个 NoSQL 集合
-3. 将集合权限设为 `read: true, write: true`
-4. 修改 `task-reminder.html` 中的 `ENV_ID` 为你的环境 ID
+1. Create an environment on [CloudBase Console](https://console.cloud.tencent.com/tcb)
+2. Create two NoSQL collections: `tasks` and `alarms`
+3. Set collection permissions to `read: true, write: true`
+4. Update `ENV_ID` in `task-reminder.html` with your environment ID
 
-## 技术栈
+## Tech Stack
 
-| 层级 | 技术 |
-|------|------|
-| 前端 | Vue 3.5 (Composition API) |
+| Layer | Technology |
+|-------|------------|
+| Frontend | Vue 3.5 (Composition API) |
 | UI | TDesign Vue Next 1.20 (CDN) |
-| 数据库（可选） | CloudBase NoSQL |
-| 离线 | localStorage |
+| Database (optional) | CloudBase NoSQL |
+| Offline | localStorage |
 
-## 项目结构
+## Project Structure
 
 ```
 TaskTap/
-├── task-reminder.html    # 主应用（单文件，开箱即用）
-├── cloudfunctions/       # CloudBase 云函数（可选）
-└── task-api-backend/     # 后端 API（可选）
+├── task-reminder.html    # Main app (single file, zero-config)
+├── cloudfunctions/       # CloudBase cloud functions (optional)
+│   ├── auth-api/         # Authentication functions
+│   └── task-api/         # Task functions
+├── task-api-backend/     # Backend API (optional)
+├── README.md             # English README (you are here)
+└── README_CN.md          # 中文 README
 ```
 
 ## License

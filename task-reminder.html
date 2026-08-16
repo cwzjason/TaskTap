@@ -775,12 +775,12 @@ body::before {
       <div class="login-error" :class="{ show: loginError }">{{ loginError }}</div>
       <form @submit.prevent="handleLogin" autocomplete="on">
         <div class="field">
-          <label>{{ t('username') }}</label>
-          <input v-model="loginForm.username" type="text" name="username" :placeholder="t('usernamePlaceholder')" autocomplete="username" />
+          <label for="login-username">{{ t('username') }}</label>
+          <input id="login-username" v-model="loginForm.username" type="text" name="username" :placeholder="t('usernamePlaceholder')" autocomplete="username" />
         </div>
         <div class="field">
-          <label>{{ t('password') }}</label>
-          <input v-model="loginForm.password" type="password" name="password" :placeholder="t('passwordPlaceholder')" autocomplete="current-password" />
+          <label for="login-password">{{ t('password') }}</label>
+          <input id="login-password" v-model="loginForm.password" type="password" name="password" :placeholder="t('passwordPlaceholder')" autocomplete="current-password" />
         </div>
         <button class="login-btn" type="submit" :disabled="loginLoading">
           {{ loginLoading ? t('processing') : (isRegistering ? t('register') : t('login')) }}

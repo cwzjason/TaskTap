@@ -13,6 +13,9 @@ node_modules/
 *.pem
 *.key
 
+# Local backups (contain password hashes)
+backup/
+
 # Build output
 dist/
 build/

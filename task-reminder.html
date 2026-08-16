@@ -8,8 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tdesign-vue-next@1.20.0/dist/tdesign.min.css">
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tdesign-vue-next@1.20.0/dist/tdesign.min.js"></script>
-<!-- CloudBase JS SDK -->
-<script src="https://static.cloudbase.net/cloudbase-js-sdk/2.28.6/cloudbase.full.js"></script>
+<!-- No external SDK needed: talks to /api/* (Vercel Serverless + Supabase) -->
 <style>
 :root {
   --primary-blue: #2563EB;
@@ -1266,36 +1265,77 @@ body::before {
 // ============================================================
 //  CONFIGURATION
 // ============================================================
-var ENV_ID = 'cwz-d2glf6xtm409cbb3a';
+var ENV_ID = 'vercel'; // kept for compatibility; backend is /api/*
 
 // ============================================================
-//  CLOUDBASE INITIALIZATION
+//  API CLIENT (Vercel Serverless + Supabase)
 // ============================================================
-var cbApp = null;
+var API_BASE = '/api';
 
-var cbAuth = null;
-
-function initCloudBaseSDK() {
-  try {
-    if (typeof cloudbase === 'undefined') {
-      console.warn('[CloudBase] SDK not loaded');
-      return null;
-    }
-    cbApp = cloudbase.init({
-      env: ENV_ID,
-      region: 'ap-shanghai'
-    });
-    cbAuth = cbApp.auth({ persistence: 'local' });
-    console.log('[CloudBase] SDK initialized with env:', ENV_ID);
-    return cbApp;
-  } catch(e) {
-    console.error('[CloudBase] Init failed:', e);
-    return null;
-  }
+// Store session token in localStorage
+function getToken() {
+  return localStorage.getItem('tasktap_token') || '';
+}
+function setToken(token) {
+  if (token) localStorage.setItem('tasktap_token', token);
+  else localStorage.removeItem('tasktap_token');
 }
 
-// Init immediately
-initCloudBaseSDK();
+// Low-level fetch wrapper with token auth
+async function apiRequest(path, options) {
+  var opts = options || {};
+  var headers = Object.assign({}, opts.headers || {});
+  if (opts.body && typeof opts.body !== 'string') {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  var token = getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  var res;
+  try {
+    res = await fetch(API_BASE + path, Object.assign({ method: 'GET' }, opts, { headers: headers }));
+  } catch(e) {
+    throw new Error('网络请求失败：' + (e.message || e));
+  }
+
+  var data;
+  try {
+    data = await res.json();
+  } catch(e) {
+    data = { ok: false, error: '服务器响应异常 (' + res.status + ')' };
+  }
+
+  if (!res.ok || !data.ok) {
+    var err = new Error((data && data.error) || ('请求失败 (' + res.status + ')'));
+    err.status = res.status;
+    if (res.status === 401) {
+      // Token expired -> clear session
+      setToken('');
+      localStorage.removeItem('tasktap_user');
+    }
+    throw err;
+  }
+  return data;
+}
+
+// Auth API helper
+async function apiAuth(action, payload) {
+  return apiRequest('/auth', {
+    method: 'POST',
+    body: Object.assign({ action: action }, payload || {})
+  });
+}
+
+// Data API helpers (tasks / alarms)
+function apiGetTasks()  { return apiRequest('/tasks'); }
+function apiAddTask(d)  { return apiRequest('/tasks', { method: 'POST',   body: d }); }
+function apiUpdTask(d)  { return apiRequest('/tasks', { method: 'PUT',    body: d }); }
+function apiDelTask(id) { return apiRequest('/tasks', { method: 'DELETE', body: { id: id } }); }
+function apiGetAlarms() { return apiRequest('/alarms'); }
+function apiAddAlarm(d) { return apiRequest('/alarms', { method: 'POST',   body: d }); }
+function apiUpdAlarm(d) { return apiRequest('/alarms', { method: 'PUT',    body: d }); }
+function apiDelAlarm(id){ return apiRequest('/alarms', { method: 'DELETE', body: { id: id } }); }
 
 const { createApp, ref, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
 
@@ -1806,21 +1846,7 @@ const app = createApp({
       loginError.value = '';
     };
 
-    // Ensure anonymous login (needed for DB access + cloud function calls)
-    const ensureAnonymous = async function() {
-      if (!cbAuth) return null;
-      try {
-        var { data, error } = await cbAuth.getSession();
-        if (data && data.session) return data.session;
-      } catch(e) { /* no session */ }
-      try {
-        var result = await cbAuth.signInAnonymously();
-        if (result && result.data) return result.data;
-      } catch(e) {
-        console.error('[Auth] Anonymous login failed:', e.message || e);
-      }
-      return null;
-    };
+    const ensureAnonymous = async function() { return null; };
 
     const handleLogin = async function() {
       var uname = (loginForm.value.username || '').trim();
@@ -1834,30 +1860,19 @@ const app = createApp({
       loginError.value = '';
 
       try {
-        if (!cbApp) throw new Error(t('sdkNotInit'));
-
-        // 1. Ensure we have anonymous login for DB access
-        await ensureAnonymous();
-
-        // 2. Call cloud function to register/login
-        //    (cloud function gets openid from server-side context, no need to pass from frontend)
-        var cfResult = await cbApp.callFunction({
-          name: 'auth-api',
-          data: {
-            action: isRegistering.value ? 'register' : 'login',
-            username: uname,
-            password: pwd
-          }
+        // 1. Call backend auth API to register/login
+        var res = await apiAuth(isRegistering.value ? 'register' : 'login', {
+          username: uname,
+          password: pwd
         });
-        var res = cfResult.result;
-        if (!res || !res.ok) {
-          throw new Error((res && res.error) || t('operationFailed'));
+        if (!res.ok) {
+          throw new Error(res.error || t('operationFailed'));
         }
 
-        // 3. Login successful
+        // 2. Login successful — save token + username
+        setToken(res.token);
         currentUser.value = { user_metadata: { username: uname } };
         isLoggedIn.value = true;
-        // Save username to localStorage for session recovery
         localStorage.setItem('tasktap_user', uname);
         loginForm.value = { username: '', password: '' };
         loginLoading.value = false;
@@ -1879,18 +1894,12 @@ const app = createApp({
       currentUser.value = null;
       isLoggedIn.value = false;
       localStorage.removeItem('tasktap_user');
+      setToken('');
       tasks.value = [];
       alarms.value = [];
       syncStatus.value = 'connecting';
       isRegistering.value = false;
       loginError.value = '';
-      // Re-do anonymous login so DB access still works for the next user
-      try {
-        if (cbAuth) await cbAuth.signOut();
-      } catch(e) { console.error('signOut error:', e); }
-      try {
-        await ensureAnonymous();
-      } catch(e) { console.error('re-anonymous login error:', e); }
     };
 
     const handleDeleteAccount = async function() {
@@ -1907,13 +1916,9 @@ const app = createApp({
       if (!confirm(t('deleteAccountFinalConfirm'))) return;
 
       try {
-        var result = await cbApp.callFunction({
-          name: 'auth-api',
-          data: { action: 'deleteAccount', username: uname, password: pwd }
-        });
-        var res = result.result;
-        if (!res || !res.ok) {
-          throw new Error((res && res.error) || t('deleteAccountFailed'));
+        var res = await apiAuth('deleteAccount', { username: uname, password: pwd });
+        if (!res.ok) {
+          throw new Error(res.error || t('deleteAccountFailed'));
         }
 
         TDesign.MessagePlugin.success(t('accountDeleted'));
@@ -1921,43 +1926,36 @@ const app = createApp({
         currentUser.value = null;
         isLoggedIn.value = false;
         localStorage.removeItem('tasktap_user');
+        setToken('');
         tasks.value = [];
         alarms.value = [];
         syncStatus.value = 'connecting';
         isRegistering.value = false;
         loginError.value = '';
-        try {
-          if (cbAuth) await cbAuth.signOut();
-        } catch(e) {}
-        try {
-          await ensureAnonymous();
-        } catch(e) {}
       } catch(e) {
         TDesign.MessagePlugin.error(e.message || t('deleteAccountFailed'));
       }
     };
 
     const checkSession = async function() {
-      if (!cbAuth) return false;
       try {
-        // Check if we have a saved username (our custom auth)
+        // Check if we have a saved username + token (our custom auth)
         var savedUser = localStorage.getItem('tasktap_user');
-        if (!savedUser) return false;
+        var token = getToken();
+        if (!savedUser || !token) return false;
 
-        // Ensure we have anonymous login for DB access
-        await ensureAnonymous();
-
-        // Sync data: migrate from old openid to current openid if needed
+        // Verify the saved user still exists in DB
         try {
-          var syncResult = await cbApp.callFunction({
-            name: 'auth-api',
-            data: { action: 'sync', username: savedUser }
-          });
-          if (syncResult.result && syncResult.result.ok && syncResult.result.migrated) {
-            log('Data synced: ' + syncResult.result.tasks + ' tasks, ' + syncResult.result.alarms + ' alarms');
+          var verifyResult = await apiAuth('check', { username: savedUser });
+          if (!verifyResult.ok || !verifyResult.exists) {
+            // User no longer exists, clear session
+            localStorage.removeItem('tasktap_user');
+            setToken('');
+            return false;
           }
-        } catch(syncErr) {
-          console.error('[checkSession] sync failed:', syncErr.message || syncErr);
+        } catch(verifyErr) {
+          // Verification failed (network etc.), try to continue with data load
+          log('User verify failed, proceeding anyway: ' + (verifyErr.message || verifyErr));
         }
 
         // Restore user state
@@ -2047,30 +2045,21 @@ const app = createApp({
       }
     }
 
-    // ==================== DIRECT DATABASE OPERATIONS (via Web SDK) ====================
-    // Bypass cloud functions entirely — use SDK's db directly (public read/write)
-    // All queries filter by username to ensure per-user data isolation
+    // ==================== DATA OPERATIONS (via /api/*) ====================
+    // All requests are authenticated by bearer token; backend isolates per-user data
 
     function currentUsername() {
       return (currentUser.value && currentUser.value.user_metadata && currentUser.value.user_metadata.username) || '';
     }
 
     async function op_loadTasks() {
-      var uname = currentUsername();
-      var query = cbApp.database().collection('tasks');
-      if (uname) query = query.where({ username: uname });
-      var res = await query.orderBy('createdAt', 'desc').get();
-      return (res.data || []).filter(function(doc) {
-        // Double-check: only return tasks belonging to current user
-        return !uname || doc.username === uname;
-      });
+      var res = await apiGetTasks();
+      return res.data || [];
     }
 
     async function op_addTask(data) {
       var now = Date.now();
-      var uname = currentUsername();
       var doc = {
-        username: uname,
         title: String(data.title || '').trim(),
         description: data.description || '',
         category: data.category || 'work',
@@ -2086,12 +2075,12 @@ const app = createApp({
         createdAt: now,
         updatedAt: now
       };
-      var res = await cbApp.database().collection('tasks').add(doc);
-      return { _id: res._id, ...doc };
+      var res = await apiAddTask(doc);
+      return res.data;
     }
 
     async function op_updateTask(id, data) {
-      var updateData = { updatedAt: Date.now() };
+      var updateData = { id: id, updatedAt: Date.now() };
       if (data.title !== undefined) updateData.title = String(data.title).trim();
       if (data.description !== undefined) updateData.description = data.description;
       if (data.category !== undefined) updateData.category = data.category;
@@ -2104,53 +2093,45 @@ const app = createApp({
       if (data.checkInMode !== undefined) updateData.checkInMode = data.checkInMode;
       if (data.checkInProgress !== undefined) updateData.checkInProgress = Number(data.checkInProgress);
       if (data.checkInHistory !== undefined) updateData.checkInHistory = data.checkInHistory;
-      await cbApp.database().collection('tasks').doc(id).update(updateData);
-      return { _id: id, ...updateData };
+      var res = await apiUpdTask(updateData);
+      return res.data;
     }
 
     async function op_deleteTask(id) {
-      await cbApp.database().collection('tasks').doc(id).remove();
+      var res = await apiDelTask(id);
       return { deleted: id };
     }
 
     async function op_loadAlarms() {
-      var uname = currentUsername();
-      var query = cbApp.database().collection('alarms');
-      if (uname) query = query.where({ username: uname });
-      var res = await query.orderBy('date', 'asc').orderBy('time', 'asc').get();
-      // Filter out the cloud seed marker and dismissed alarms
-      return (res.data || []).filter(function(doc) {
-        return doc.label !== '__cloud_seeded__' && !doc.dismissed && (!uname || doc.username === uname);
-      });
+      var res = await apiGetAlarms();
+      return res.data || [];
     }
 
     async function op_addAlarm(data) {
-      var uname = currentUsername();
       var doc = {
-        username: uname,
         label: String(data.label || '').trim(),
         date: String(data.date || ''),
         time: String(data.time || ''),
         dismissed: false,
         triggered: false
       };
-      var res = await cbApp.database().collection('alarms').add(doc);
-      return { _id: res._id, ...doc };
+      var res = await apiAddAlarm(doc);
+      return res.data;
     }
 
     async function op_updateAlarm(id, data) {
-      var updateData = {};
+      var updateData = { id: id };
       if (data.label !== undefined) updateData.label = data.label;
       if (data.date !== undefined) updateData.date = data.date;
       if (data.time !== undefined) updateData.time = data.time;
       if (data.dismissed !== undefined) updateData.dismissed = !!data.dismissed;
       if (data.triggered !== undefined) updateData.triggered = !!data.triggered;
-      await cbApp.database().collection('alarms').doc(id).update(updateData);
-      return { _id: id, ...updateData };
+      var res = await apiUpdAlarm(updateData);
+      return res.data;
     }
 
     async function op_deleteAlarm(id) {
-      await cbApp.database().collection('alarms').doc(id).remove();
+      var res = await apiDelAlarm(id);
       return { deleted: id };
     }
 
@@ -2938,7 +2919,7 @@ const app = createApp({
     };
 
     // ============================================================
-    //  INITIALIZATION — Direct DB access (bypass cloud functions)
+    //  INITIALIZATION — API access (Vercel Serverless + Supabase)
     // ============================================================
     async function initializeApp() {
       isLoading.value = true;
@@ -2946,8 +2927,9 @@ const app = createApp({
 
       log('Starting initialization...');
 
-      if (!cbApp || !cbAuth) {
-        log('SDK not available');
+      // If no saved token, fall back to local mode + show login
+      if (!getToken()) {
+        log('No session token');
         syncStatus.value = 'local';
         loadLocalData();
         if (tasks.value.length === 0) seedDemoData();
@@ -2955,44 +2937,13 @@ const app = createApp({
         return;
       }
 
-      // First, do anonymous login for DB access
-      loadingText.value = '连接数据库...';
-      try {
-        await ensureAnonymous();
-        log('Anonymous login OK');
-      } catch(e) {
-        log('Anonymous login failed: ' + (e.message || e));
-      }
-
-      // Then check if user has a saved session
+      // Check if user has a saved session
       loadingText.value = '验证中...';
       var sessionOk = await checkSession();
       log('Session check: ' + sessionOk);
 
       if (sessionOk) {
-        // Verify the saved user still exists in DB (cloud function check)
-        var savedUser = localStorage.getItem('tasktap_user');
-        try {
-          var verifyResult = await cbApp.callFunction({
-            name: 'auth-api',
-            data: { action: 'check', username: savedUser }
-          });
-          if (verifyResult.result && verifyResult.result.ok && verifyResult.result.exists) {
-            await loadAppData();
-          } else {
-            // User no longer exists, clear session and show login
-            log('Saved user not found in DB, showing login');
-            localStorage.removeItem('tasktap_user');
-            currentUser.value = null;
-            isLoggedIn.value = false;
-            syncStatus.value = 'connecting';
-            isLoading.value = false;
-          }
-        } catch(e) {
-          // Verification failed, still try to load data
-          log('User verify failed, proceeding anyway: ' + (e.message || e));
-          await loadAppData();
-        }
+        await loadAppData();
       } else {
         // Show login screen
         syncStatus.value = 'connecting';
@@ -3007,12 +2958,11 @@ const app = createApp({
 
       try {
         log('Loading data from cloud...');
-        var testCol = cbApp.database().collection('tasks');
-        var dbPromise = testCol.limit(1).get();
+        var testPromise = apiGetTasks();
         var timeoutPromise = new Promise(function(_, reject) {
           setTimeout(function() { reject(new Error('数据库连接超时（10秒）')); }, 10000);
         });
-        await Promise.race([dbPromise, timeoutPromise]);
+        await Promise.race([testPromise, timeoutPromise]);
         log('DB connection OK');
 
         var [taskData, alarmData] = await Promise.all([op_loadTasks(), op_loadAlarms()]);
@@ -3025,12 +2975,8 @@ const app = createApp({
         // Seed demo data if first time (per user)
         var cloudSeeded = false;
         try {
-          var uname = currentUsername();
-          var seedQuery = cbApp.database().collection('alarms');
-          if (uname) seedQuery = seedQuery.where({ username: uname, label: '__cloud_seeded__' });
-          else seedQuery = seedQuery.where({ label: '__cloud_seeded__' });
-          var seedCheck = await seedQuery.limit(1).get();
-          cloudSeeded = seedCheck.data && seedCheck.data.length > 0;
+          var seedKey = 'tasktap_seeded_' + currentUsername();
+          cloudSeeded = localStorage.getItem(seedKey) === '1';
         } catch(e) { /* ignore */ }
 
         if (tasks.value.length === 0 && !cloudSeeded) {
@@ -3042,10 +2988,11 @@ const app = createApp({
               delete t._id; delete t.id;
               await op_addTask(t);
             }
-            await cbApp.database().collection('alarms').add({
-              username: currentUsername(), label: '__cloud_seeded__', date: '2000-01-01', time: '00:00',
+            await op_addAlarm({
+              label: '__cloud_seeded__', date: '2000-01-01', time: '00:00',
               dismissed: true, triggered: true
             });
+            localStorage.setItem('tasktap_seeded_' + currentUsername(), '1');
             var fresh = await op_loadTasks();
             tasks.value = fresh.map(normalizeTaskFromDB);
             log('Seed complete: ' + tasks.value.length + ' tasks');

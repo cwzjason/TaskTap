@@ -2,11 +2,11 @@
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 
-一个基于 Vue 3 + TDesign 的单页面应用，支持**任务管理、打卡追踪、闹钟提醒**，可纯本地使用或接入 CloudBase 云端同步。
+一个基于 Vue 3 + TDesign 的单页面应用，支持**任务管理、打卡追踪、闹钟提醒**，可纯本地使用，也可通过 Vercel + Supabase 云端同步。
 
 ## 在线体验
 
-👉 **[https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html](https://cwz-d2glf6xtm409cbb3a-1438121806.tcloudbaseapp.com/task-reminder.html)**
+👉 **[https://task-tap-virid.vercel.app/](https://task-tap-virid.vercel.app/)**
 
 打开即可使用，注册账号后数据自动云端同步，支持多设备访问。
 
@@ -37,7 +37,7 @@ cd TaskTap
 ### 用户认证
 - 注册 / 登录 / 退出 / 注销账号
 - SHA256 + 随机盐值密码加密，安全可靠
-- 云端数据按用户隔离（openid），互不可见
+- 云端数据按用户隔离，互不可见
 - 支持本地模式（无需注册即可使用）
 
 ### 任务管理
@@ -59,14 +59,13 @@ cd TaskTap
 - 倒计时显示
 - 浏览器通知提醒
 
-## 启用云端同步（可选）
+## 启用云端同步（可选，Vercel + Supabase）
 
-默认使用本地存储。如需多设备同步，配置 CloudBase：
+默认使用本地存储。如需多设备同步，部署 `/api/*` 无服务器后端：
 
-1. 在 [CloudBase 控制台](https://console.cloud.tencent.com/tcb) 创建环境
-2. 创建 `tasks` 和 `alarms` 两个 NoSQL 集合
-3. 将集合权限设为 `read: true, write: true`
-4. 修改 `task-reminder.html` 中的 `ENV_ID` 为你的环境 ID
+1. 在 [Supabase](https://supabase.com) 创建项目，建 4 张表：`users`、`sessions`、`tasks`、`alarms`
+2. 在 [Vercel](https://vercel.com) 中添加环境变量 `SUPABASE_URL` 和 `SUPABASE_SERVICE_ROLE_KEY`
+3. 部署后，注册/登录和数据同步会自动走 `/api/*` 接口
 
 ## 技术栈
 
@@ -74,7 +73,8 @@ cd TaskTap
 |------|------|
 | 前端 | Vue 3.5 (Composition API) |
 | UI | TDesign Vue Next 1.20 (CDN) |
-| 数据库（可选） | CloudBase NoSQL |
+| 后端（可选） | Vercel Serverless Functions |
+| 数据库（可选） | Supabase (PostgreSQL) |
 | 离线 | localStorage |
 
 ## 项目结构
@@ -82,10 +82,8 @@ cd TaskTap
 ```
 TaskTap/
 ├── task-reminder.html    # 主应用（单文件，开箱即用）
-├── cloudfunctions/       # CloudBase 云函数（可选）
-│   ├── auth-api/         # 认证相关云函数
-│   └── task-api/         # 任务相关云函数
-├── task-api-backend/     # 后端 API（可选）
+├── api/                  # Vercel Serverless 接口（认证 / 任务 / 闹钟）
+├── vercel.json           # Vercel 配置
 ├── README.md             # English README
 └── README_CN.md          # 中文 README
 ```

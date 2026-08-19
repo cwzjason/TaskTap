@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-// ---- Password hashing (kept identical to CloudBase version so old users keep working) ----
+// ---- Password hashing (SHA256 + salt) ----
 function hashPassword(pwd, salt) {
   return crypto.createHash('sha256').update(salt + pwd + salt).digest('hex');
 }

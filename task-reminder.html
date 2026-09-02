@@ -1052,7 +1052,7 @@ body::before {
                   :model-value="task.completed"
                   @change="(val) => toggleTask(task, val)"
                   class="task-checkbox"
-                />
+                ></t-checkbox>
                 <span class="task-priority-dot" :class="task.priority"></span>
                 <div class="task-content" @click="openEditDialog(task)">
                   <div class="task-title">{{ task.title }}</div>

@@ -2268,6 +2268,49 @@ const app = createApp({
       if (existingColor) form.value.newCatColor = existingColor;
     }
 
+    // Parse M/D, M/D/YY or YYYY-MM-DD into a comparable timestamp.
+    // M/D without a year is interpreted as the current year (unless it falls
+    // more than 2 months in the past → assume next year, for dates around Jan).
+    function parseDueDate(ds) {
+      if (!ds) return 0;
+      var now = new Date();
+      var y = now.getFullYear();
+      var ts;
+      // YYYY-MM-DD
+      if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(ds)) {
+        var p = ds.split('-');
+        ts = new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)).getTime();
+      } else {
+        // M/D or M/D/YY
+        var m = String(ds).match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+        if (m) {
+          var yy = m[3] ? (parseInt(m[3],10) < 100 ? 2000 + parseInt(m[3],10) : parseInt(m[3],10)) : y;
+          ts = new Date(yy, parseInt(m[1],10)-1, parseInt(m[2],10)).getTime();
+          // M/D in the past without a year → treat as next year
+          if (!m[3]) {
+            var today = new Date(y, now.getMonth(), now.getDate()).getTime();
+            if (ts < today - 2*30*86400000) {
+              ts = new Date(yy + 1, parseInt(m[1],10)-1, parseInt(m[2],10)).getTime();
+            }
+          }
+        } else {
+          ts = new Date(ds).getTime();
+        }
+      }
+      return ts || 0;
+    }
+    function parseDueTime(ts) {
+      if (!ts) return 0;
+      var p = String(ts).split(':');
+      return (parseInt(p[0],10) || 0) * 60 + (parseInt(p[1],10) || 0);
+    }
+    function dueDateDiffDays(dateStr) {
+      var due = parseDueDate(dateStr);
+      if (!due) return null;
+      var n = new Date();
+      var today = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+      return Math.round((due - today) / 86400000);
+    }
     // Suggested priority from a due date:
     //   ≤2 days away (incl. overdue/today) → high
     //   3–5 days away                       → medium
@@ -2275,15 +2318,22 @@ const app = createApp({
     // Empty/invalid dates return '' (no suggestion → keep manual choice).
     function autoPriorityForDate(dateStr) {
       if (!dateStr) return '';
-      var parts = String(dateStr).split('-');
-      if (parts.length !== 3) return '';
-      var due = Date.UTC(+parts[0], (+parts[1] - 1), +parts[2]);
-      var n = new Date();
-      var today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
-      var diffDays = Math.round((due - today) / 86400000);
-      if (diffDays <= 2) return 'high';
-      if (diffDays <= 5) return 'medium';
+      var diff = dueDateDiffDays(dateStr);
+      if (diff === null) return '';
+      if (diff <= 2) return 'high';
+      if (diff <= 5) return 'medium';
       return 'low';
+    }
+    // The priority a task should show. Tasks WITH a due date are driven by the
+    // due date (auto escalate as the date approaches); tasks without one use
+    // the priority the user picked.
+    function displayPriority(t) {
+      if (!t) return 'medium';
+      if (t.dueDate) {
+        var auto = autoPriorityForDate(t.dueDate);
+        if (auto) return auto;
+      }
+      return t.priority || 'medium';
     }
 
     // ==================== SYNC STATUS ====================
@@ -2736,7 +2786,7 @@ const app = createApp({
       return tasks.value.filter(function(t) { return t.completed; }).length;
     });
     const urgentCount = computed(function() {
-      return tasks.value.filter(function(t) { return t.priority === 'high' && !t.completed; }).length;
+      return tasks.value.filter(function(t) { return displayPriority(t) === 'high' && !t.completed; }).length;
     });
     const totalTasks = computed(function() { return tasks.value.length; });
     const activeAlarmsCount = computed(function() {
@@ -2761,35 +2811,13 @@ const app = createApp({
       }
 
       if (categoryFilter.value) result = result.filter(function(t) { return t.category === categoryFilter.value; });
-      if (priorityFilter.value) result = result.filter(function(t) { return t.priority === priorityFilter.value; });
+      if (priorityFilter.value) result = result.filter(function(t) { return displayPriority(t) === priorityFilter.value; });
 
-      // Parse M/D or YYYY-MM-DD into a comparable timestamp (uses current year for M/D)
-      function parseDueDate(ds) {
-        if (!ds) return 0;
-        var now = new Date();
-        var y = now.getFullYear();
-        // YYYY-MM-DD
-        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(ds)) {
-          var p = ds.split('-');
-          return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)).getTime();
-        }
-        // M/D or M/D/YY
-        var m = String(ds).match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
-        if (m) {
-          var yy = m[3] ? (parseInt(m[3],10) < 100 ? 2000 + parseInt(m[3],10) : parseInt(m[3],10)) : y;
-          return new Date(yy, parseInt(m[1],10)-1, parseInt(m[2],10)).getTime();
-        }
-        return new Date(ds).getTime() || 0;
-      }
-      function parseDueTime(ts) {
-        if (!ts) return 0;
-        var p = String(ts).split(':');
-        return (parseInt(p[0],10) || 0) * 60 + (parseInt(p[1],10) || 0);
-      }
       // Ordering: dated tasks first (by due date+time, earliest on top),
       // then undated tasks sorted by priority (high→low), newest first.
       result.sort(function(a, b) {
         var pOrder = { high: 0, medium: 1, low: 2 };
+        var pa = displayPriority(a), pb = displayPriority(b);
         var hasA = !!a.dueDate;
         var hasB = !!b.dueDate;
         if (hasA && hasB) {
@@ -2797,16 +2825,22 @@ const app = createApp({
           if (dA !== dB) return dA - dB;
           var tA = parseDueTime(a.dueTime), tB = parseDueTime(b.dueTime);
           if (tA !== tB) return tA - tB;
-          if (a.priority !== b.priority) return pOrder[a.priority] - pOrder[b.priority];
+          if (pa !== pb) return pOrder[pa] - pOrder[pb];
           return (b.createdAt || 0) - (a.createdAt || 0);
         }
         if (hasA) return -1;
         if (hasB) return 1;
-        if (a.priority !== b.priority) return pOrder[a.priority] - pOrder[b.priority];
+        if (pa !== pb) return pOrder[pa] - pOrder[pb];
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
 
-      return result;
+      // Show due-date-driven priority on dated tasks (auto escalate), while
+      // keeping the user's stored choice intact underneath (task.userPriority).
+      return result.map(function(t) {
+        var dp = displayPriority(t);
+        if (dp === t.priority) return t;
+        return Object.assign({}, t, { priority: dp, userPriority: t.priority });
+      });
     });
 
     const categoryStats = computed(function() {

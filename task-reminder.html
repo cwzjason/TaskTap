@@ -427,9 +427,9 @@ body > .t-popup { z-index: 3000 !important; }
   font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 .task-meta {
   display: flex;

@@ -444,9 +444,7 @@ body > .t-popup { z-index: 3000 !important; }
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 .task-tags { display: flex; gap: 6px; flex-shrink: 0; }
 .task-actions { display: flex; gap: 4px; flex-shrink: 0; }
@@ -2697,7 +2695,7 @@ const app = createApp({
       var c = customCategories.value.find(function(x) { return x.name === cat; });
       if (c && c.color) return c.color;
       // 3. built-in default colors
-      var m = { work: '#2563EB', personal: '#7C3AED', health: '#10B981', finance: '#D97706', other: '#64748B' };
+      var m = { work: '#2563EB', geog340: '#2563EB', personal: '#7C3AED', health: '#10B981', finance: '#D97706', other: '#64748B' };
       return m[cat] || '';
     }
     function catTagClass(cat) {

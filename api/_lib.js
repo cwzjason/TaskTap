@@ -94,20 +94,20 @@ function taskToApi(row) {
 }
 
 function taskToDb(data) {
-  return {
-    title: String(data.title || '').trim(),
-    description: data.description || '',
-    category: data.category || 'work',
-    priority: data.priority || 'medium',
-    due_date: data.dueDate || '',
-    due_time: data.dueTime || '',
-    completed: !!data.completed,
-    check_in_enabled: !!data.checkInEnabled,
-    check_in_goal: Number(data.checkInGoal) || 0,
-    check_in_mode: data.checkInMode || 'daily',
-    check_in_progress: Number(data.checkInProgress) || 0,
-    check_in_history: Array.isArray(data.checkInHistory) ? data.checkInHistory : []
-  };
+  const out = {};
+  if (data.title !== undefined) out.title = String(data.title).trim();
+  if (data.description !== undefined) out.description = data.description;
+  if (data.category !== undefined) out.category = data.category;
+  if (data.priority !== undefined) out.priority = data.priority;
+  if (data.dueDate !== undefined) out.due_date = data.dueDate;
+  if (data.dueTime !== undefined) out.due_time = data.dueTime;
+  if (data.completed !== undefined) out.completed = !!data.completed;
+  if (data.checkInEnabled !== undefined) out.check_in_enabled = !!data.checkInEnabled;
+  if (data.checkInGoal !== undefined) out.check_in_goal = Number(data.checkInGoal) || 0;
+  if (data.checkInMode !== undefined) out.check_in_mode = data.checkInMode;
+  if (data.checkInProgress !== undefined) out.check_in_progress = Number(data.checkInProgress) || 0;
+  if (data.checkInHistory !== undefined) out.check_in_history = Array.isArray(data.checkInHistory) ? data.checkInHistory : [];
+  return out;
 }
 
 function alarmToApi(row) {

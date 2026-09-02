@@ -422,7 +422,7 @@ body > .t-popup { z-index: 3000 !important; }
 .task-priority-dot.medium { background: var(--warning); }
 .task-priority-dot.low    { background: var(--success); }
 
-.task-content { flex: 1; min-width: 0; cursor: pointer; }
+.task-content { flex: 1; min-width: 0; cursor: pointer; overflow: visible; }
 .task-title {
   font-size: 15px;
   font-weight: 500;
@@ -445,6 +445,10 @@ body > .t-popup { z-index: 3000 !important; }
   color: var(--text-secondary);
   margin-top: 2px;
   word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.5;
+  max-width: 100%;
 }
 .task-tags { display: flex; gap: 6px; flex-shrink: 0; }
 .task-actions { display: flex; gap: 4px; flex-shrink: 0; }

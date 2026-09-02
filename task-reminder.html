@@ -2763,6 +2763,29 @@ const app = createApp({
       if (categoryFilter.value) result = result.filter(function(t) { return t.category === categoryFilter.value; });
       if (priorityFilter.value) result = result.filter(function(t) { return t.priority === priorityFilter.value; });
 
+      // Parse M/D or YYYY-MM-DD into a comparable timestamp (uses current year for M/D)
+      function parseDueDate(ds) {
+        if (!ds) return 0;
+        var now = new Date();
+        var y = now.getFullYear();
+        // YYYY-MM-DD
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(ds)) {
+          var p = ds.split('-');
+          return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)).getTime();
+        }
+        // M/D or M/D/YY
+        var m = String(ds).match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+        if (m) {
+          var yy = m[3] ? (parseInt(m[3],10) < 100 ? 2000 + parseInt(m[3],10) : parseInt(m[3],10)) : y;
+          return new Date(yy, parseInt(m[1],10)-1, parseInt(m[2],10)).getTime();
+        }
+        return new Date(ds).getTime() || 0;
+      }
+      function parseDueTime(ts) {
+        if (!ts) return 0;
+        var p = String(ts).split(':');
+        return (parseInt(p[0],10) || 0) * 60 + (parseInt(p[1],10) || 0);
+      }
       // Ordering: dated tasks first (by due date+time, earliest on top),
       // then undated tasks sorted by priority (high→low), newest first.
       result.sort(function(a, b) {
@@ -2770,9 +2793,10 @@ const app = createApp({
         var hasA = !!a.dueDate;
         var hasB = !!b.dueDate;
         if (hasA && hasB) {
-          var keyA = a.dueDate + ' ' + (a.dueTime || '');
-          var keyB = b.dueDate + ' ' + (b.dueTime || '');
-          if (keyA !== keyB) return keyA < keyB ? -1 : 1;
+          var dA = parseDueDate(a.dueDate), dB = parseDueDate(b.dueDate);
+          if (dA !== dB) return dA - dB;
+          var tA = parseDueTime(a.dueTime), tB = parseDueTime(b.dueTime);
+          if (tA !== tB) return tA - tB;
           if (a.priority !== b.priority) return pOrder[a.priority] - pOrder[b.priority];
           return (b.createdAt || 0) - (a.createdAt || 0);
         }

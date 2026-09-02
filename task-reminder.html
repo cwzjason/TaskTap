@@ -136,6 +136,18 @@ body > .t-popup { z-index: 3000 !important; }
   color: var(--accent-purple); cursor: pointer; font-weight: 500; text-decoration: none;
 }
 .login-card .login-toggle a:hover { text-decoration: underline; }
+.login-card .login-divider {
+  display: flex; align-items: center; gap: 10px; margin: 18px 0 12px;
+  color: var(--text-muted); font-size: 12px; white-space: nowrap;
+}
+.login-card .login-divider::before,
+.login-card .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+.login-card .guest-btn {
+  width: 100%; padding: 12px; background: #fff; color: var(--text-secondary);
+  border: 1.5px dashed var(--border-light); border-radius: 12px;
+  font-size: 14px; cursor: pointer; transition: all .2s;
+}
+.login-card .guest-btn:hover { border-color: var(--accent-purple); color: var(--accent-purple); background: rgba(124,58,237,0.04); }
 
 /* ===== User Badge ===== */
 .user-badge {
@@ -354,6 +366,31 @@ body > .t-popup { z-index: 3000 !important; }
 
 /* ===== Task List ===== */
 .task-list { display: flex; flex-direction: column; gap: 10px; }
+/* Category group (collapsible "收纳盒") */
+.task-group {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-white);
+  overflow: hidden;
+}
+.task-group-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; cursor: pointer; user-select: none;
+  transition: background .15s;
+}
+.task-group-header:hover { background: var(--td-bg-color-container-hover); }
+.task-group.open .task-group-header { border-bottom: 1px solid var(--border-light); }
+.group-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.group-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.group-count { font-size: 12px; color: var(--text-muted); }
+.group-arrow { font-size: 10px; color: var(--text-muted); transform: rotate(90deg); transition: transform .2s; }
+.task-group:not(.open) .group-arrow { transform: rotate(0deg); }
+.task-group-body {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-page);
+}
+.task-group-body .task-item { background: var(--surface-white); }
 .task-item {
   display: flex;
   align-items: center;
@@ -588,6 +625,23 @@ body > .t-popup { z-index: 3000 !important; }
 .cat-tag.health   { background: #ECFDF5; color: #059669; }
 .cat-tag.finance  { background: #FFFBEB; color: #D97706; }
 .cat-tag.other    { background: #F8FAFC; color: #64748B; }
+.cat-tag.misc     { background: #F1F5F9; color: #475569; }
+
+/* ===== Category Manager Dialog ===== */
+.cat-mgr-row    { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.cat-mgr-label  { font-size:13px; color:var(--text-secondary); flex-shrink:0; }
+.cat-swatch     { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:transform .15s; }
+.cat-swatch:hover { transform:scale(1.12); }
+.cat-swatch.sel { border-color:var(--text-primary); box-shadow:0 0 0 2px #fff inset; }
+.cat-mgr-sec    { margin:14px 0 2px; font-size:12px; color:var(--text-muted); font-weight:600; letter-spacing:.3px; }
+.cat-mgr-list   { border-top:1px dashed var(--border, rgba(120,130,150,.25)); }
+.cat-mgr-item   { display:flex; align-items:center; gap:10px; padding:8px 4px; border-radius:8px; }
+.cat-mgr-item:hover { background:rgba(0,0,0,.04); }
+.cat-mgr-dot    { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.cat-mgr-name   { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
+.cat-mgr-count  { font-size:12px; color:var(--text-muted); flex-shrink:0; }
+.cat-mgr-empty  { text-align:center; color:var(--text-muted); font-size:13px; padding:10px 0 4px; }
+.cat-mgr-item .cat-mgr-del { color:var(--danger); }
 
 /* ===== Toast Override ===== */
 .t-message { border-radius: 10px !important; }
@@ -627,6 +681,11 @@ body > .t-popup { z-index: 3000 !important; }
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+.field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
 }
 
 /* ===== Notification Toast ===== */
@@ -763,7 +822,7 @@ body::before {
 
 <div id="app">
   <!-- Login Overlay -->
-  <div class="login-overlay" v-if="!isLoggedIn && !isLoading">
+  <div class="login-overlay" v-if="!isLoggedIn && !guestMode && !isLoading">
     <div class="login-card">
       <div class="lang-switcher" style="position:absolute;top:16px;right:20px;">
         <button :class="'lang-btn' + (locale === 'zh-CN' ? ' active' : '')" @click="switchLocale('zh-CN')">中</button>
@@ -788,6 +847,11 @@ body::before {
       </form>
       <div class="login-toggle">
         <a @click="toggleRegister">{{ isRegistering ? t('hasAccount') : t('noAccount') }}</a>
+      </div>
+      <!-- Enter without a database account — data stays in this browser -->
+      <div v-if="!isRegistering">
+        <div class="login-divider">{{ t('or') }}</div>
+        <button type="button" class="guest-btn" @click="enterGuestMode">🚀 {{ t('guestModeEnter') }}</button>
       </div>
     </div>
   </div>
@@ -848,6 +912,7 @@ body::before {
           <span class="sync-dot"></span>
           {{ syncStatusText }}
         </div>
+        <t-button v-if="guestMode && !isLoggedIn" theme="default" variant="text" @click="exitGuestMode">🔑 {{ t('login') }}</t-button>
         <div class="header-actions">
           <t-button theme="default" variant="outline" @click="openAlarmDialog">
             {{ t('setAlarm') }}
@@ -908,11 +973,7 @@ body::before {
           <div class="toolbar">
             <t-input v-model="searchQuery" :placeholder="t('searchTasks')" clearable />
             <t-select :value="categoryFilter" @change="(v) => categoryFilter = v" :placeholder="t('categoryFilter')" clearable :popup-props="popupBody">
-              <t-option value="work" :label="t('cat_work')" />
-              <t-option value="personal" :label="t('cat_personal')" />
-              <t-option value="health" :label="t('cat_health')" />
-              <t-option value="finance" :label="t('cat_finance')" />
-              <t-option value="other" :label="t('cat_other')" />
+              <t-option v-for="c in categoryList" :key="c.key" :value="c.key" :label="c.label" />
             </t-select>
             <t-select :value="priorityFilter" @change="(v) => priorityFilter = v" :placeholder="t('priorityFilter')" clearable :popup-props="popupBody">
               <t-option value="high" :label="t('pri_high')" />
@@ -921,18 +982,31 @@ body::before {
             </t-select>
           </div>
 
-          <!-- Task Items -->
+          <!-- Task Items — grouped by category (collapsible) -->
           <div class="task-list" v-if="filteredTasks.length > 0">
             <div
-              v-for="task in filteredTasks"
-              :key="task._id || task.id"
-              class="task-item"
-              :class="{
-                completed: task.completed,
-                urgent: task.priority === 'high' && !task.completed,
-                'checkin-task': task.checkInEnabled
-              }"
+              v-for="group in taskGroups"
+              :key="group.key"
+              class="task-group"
+              :class="{ open: !isGroupCollapsed(group.key) }"
             >
+              <div class="task-group-header" @click="toggleGroupCollapsed(group.key)">
+                <span class="group-dot" :style="group.dotStyle"></span>
+                <span class="group-name">{{ group.label }}</span>
+                <span class="group-count">{{ group.items.length }}</span>
+                <span class="group-arrow">▶</span>
+              </div>
+              <div v-show="!isGroupCollapsed(group.key)" class="task-group-body">
+                <div
+                  v-for="task in group.items"
+                  :key="task._id || task.id"
+                  class="task-item"
+                  :class="{
+                    completed: task.completed,
+                    urgent: task.priority === 'high' && !task.completed,
+                    'checkin-task': task.checkInEnabled
+                  }"
+                >
               <!-- 打卡任务：水球进度 + 打卡按钮 -->
               <template v-if="task.checkInEnabled">
                 <div class="checkin-water" :class="{ full: task.completed }" @click.stop="doCheckIn(task)">
@@ -945,7 +1019,7 @@ body::before {
                   <div class="task-desc" v-if="task.description">{{ task.description }}</div>
                   <div class="task-meta">
                     <span class="cat-tag checkin-tag">{{ task.checkInMode === 'counter' ? t('counter') : t('daily') }} · {{ task.checkInProgress || 0 }}{{ t('times') }}</span>
-                    <span :class="'cat-tag ' + task.category">{{ categoryLabel(task.category) }}</span>
+                    <span :class="'cat-tag ' + catTagClass(task.category)" :style="catTagStyle(task.category)">{{ categoryLabel(task.category) }}</span>
                   </div>
                 </div>
                 <div class="task-actions" @click.stop>
@@ -983,7 +1057,7 @@ body::before {
                   <div class="task-desc" v-if="task.description">{{ task.description }}</div>
                   <div class="task-meta">
                     <span v-if="task.dueDate">📅 {{ task.dueDate }} {{ task.dueTime || '' }}</span>
-                    <span :class="'cat-tag ' + task.category">{{ categoryLabel(task.category) }}</span>
+                    <span :class="'cat-tag ' + catTagClass(task.category)" :style="catTagStyle(task.category)">{{ categoryLabel(task.category) }}</span>
                     <t-tag size="small" :theme="priorityTheme(task.priority)" variant="light">
                       {{ priorityLabel(task.priority) }}
                     </t-tag>
@@ -998,6 +1072,8 @@ body::before {
                   </t-popconfirm>
                 </div>
               </template>
+                </div>
+              </div>
             </div>
           </div>
           <div v-else class="empty-state">
@@ -1051,7 +1127,7 @@ body::before {
             <div class="panel-title">{{ t('taskDistribution') }}</div>
           </div>
           <div class="panel-body">
-            <template v-if="totalTasks > 0">
+            <template v-if="categoryStats.length > 0">
               <div style="margin-bottom:14px;" v-for="cat in categoryStats" :key="cat.key">
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
                   <span style="color:var(--text-secondary);">{{ cat.label }}</span>
@@ -1102,15 +1178,37 @@ body::before {
         <t-textarea v-model="form.description" :placeholder="t('descPlaceholder')" :autosize="autosizeConfig" maxlength="500" />
       </div>
     </div>
+    <!-- Color field: always shown between description and category -->
+    <div class="form-row">
+      <div class="form-item">
+        <label>{{ t('categoryColor') }}</label>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+          <span
+            v-for="col in catPalette"
+            :key="col"
+            class="cat-swatch"
+            :style="{ background: col }"
+            :class="{ sel: form.newCatColor === col }"
+            @click="form.newCatColor = col"
+          ></span>
+        </div>
+        <div class="field-hint">{{ t('categoryColorHint') }}</div>
+      </div>
+    </div>
     <div class="form-row">
       <div class="form-item">
         <label>{{ t('category') }}</label>
+        <!-- filterable + creatable: type a brand-new category name directly while creating a task -->
         <t-select
           v-model="form.category"
           :placeholder="t('selectCategory')"
           :popup-props="popupBody"
           :options="categoryOptions"
+          filterable
+          creatable
+          @change="onTaskCategoryChange"
         />
+        <div class="field-hint">{{ t('categoryHint') }}</div>
       </div>
       <div class="form-item">
         <label>{{ t('priority') }}</label>
@@ -1119,7 +1217,9 @@ body::before {
           :placeholder="t('selectPriority')"
           :popup-props="popupBody"
           :options="priorityOptions"
+          @change="form.priorityTouched = true"
         />
+        <div class="field-hint">{{ t('priorityAutoHint') }}</div>
       </div>
     </div>
     <div class="form-row">
@@ -1335,6 +1435,10 @@ function apiGetAlarms() { return apiRequest('/alarms'); }
 function apiAddAlarm(d) { return apiRequest('/alarms', { method: 'POST',   body: d }); }
 function apiUpdAlarm(d) { return apiRequest('/alarms', { method: 'PUT',    body: d }); }
 function apiDelAlarm(id){ return apiRequest('/alarms', { method: 'DELETE', body: { id: id } }); }
+function apiGetCategories() { return apiRequest('/categories'); }
+function apiAddCategory(d)  { return apiRequest('/categories', { method: 'POST',   body: d }); }
+function apiUpdCategory(d)  { return apiRequest('/categories', { method: 'PUT',    body: d }); }
+
 
 const { createApp, ref, computed, watch, onMounted, onUnmounted, nextTick } = Vue;
 
@@ -1357,6 +1461,9 @@ const LANG_PACKS = {
     login: '登录',
     hasAccount: '已有账号？去登录',
     noAccount: '没有账号？立即注册',
+    or: '或',
+    guestModeEnter: '不登录，本地试用',
+    guestModeHint: '本地模式：数据仅保存在当前浏览器，不会同步到云端',
     enterUsername: '请输入用户名',
     usernameMin3: '用户名至少3个字符',
     passwordMin6: '密码至少6位',
@@ -1398,7 +1505,12 @@ const LANG_PACKS = {
     descPlaceholder: '任务详细描述（可选）',
     category: '分类',
     selectCategory: '选择分类',
+    categoryHint: '可以直接输入一个新分类名并回车创建',
+    categoryColor: '颜色',
+    categoryColorHint: '为当前分类选择颜色（已有分类也会被重新配色）',
+    newCategoryColor: '新分类颜色',
     priority: '优先级',
+    priorityAutoHint: '选日期后自动按剩余天数定级：≤2天高 · 3-5天中 · 5天以上低',
     selectPriority: '选择优先级',
     dueDate: '截止日期',
     selectDate: '选择日期',
@@ -1462,6 +1574,28 @@ const LANG_PACKS = {
     cat_finance: '💰 财务',
     cat_other: '📌 其他',
     uncategorized: '未分类',
+    manageCategories: '⚙️ 分类管理',
+    builtinCategories: '内置分类',
+    customCategories: '自定义分类',
+    builtinNoEdit: '内置分类不可修改',
+    addCategory: '添加分类',
+    saveCategory: '保存分类',
+    cancelEdit: '取消编辑',
+    editCategory: '编辑',
+    deleteCategory: '删除',
+    categoryName: '分类名称',
+    categoryNamePlaceholder: '如 cs639、课程名…',
+    categoryColor: '颜色',
+    enterCategoryName: '请输入分类名称',
+    categoryNameTooLong: '分类名称最多30个字符',
+    categoryNameConflict: '该分类名称已存在',
+    categoryNameBuiltin: '不能使用内置分类名称（工作/个人/健康/财务/其他）',
+    confirmDeleteCategory: '删除分类后，其下任务将移入「其他」，确定删除？',
+    categoryAdded: '分类已添加',
+    categoryUpdated: '分类已更新',
+    categoryDeleted: '分类已删除',
+    tasksUnit: '个任务',
+    noCustomCategories: '暂无自定义分类，输入名称并点「添加分类」即可创建',
     // Priorities
     pri_high: '🔴 高优先级',
     pri_medium: '🟡 中优先级',
@@ -1518,6 +1652,9 @@ const LANG_PACKS = {
     login: 'Sign In',
     hasAccount: 'Already have an account? Sign In',
     noAccount: "Don't have an account? Sign Up",
+    or: 'or',
+    guestModeEnter: 'Try locally without login',
+    guestModeHint: 'Local mode: data is stored in this browser only, never synced to the cloud',
     enterUsername: 'Please enter username',
     usernameMin3: 'Username must be at least 3 characters',
     passwordMin6: 'Password must be at least 6 characters',
@@ -1553,7 +1690,12 @@ const LANG_PACKS = {
     descPlaceholder: 'Task description (optional)',
     category: 'Category',
     selectCategory: 'Select category',
+    categoryHint: 'Or type a brand-new category name and press Enter to create it',
+    categoryColor: 'Color',
+    categoryColorHint: 'Pick a color for the category (also re-colors existing ones)',
+    newCategoryColor: 'New category color',
     priority: 'Priority',
+    priorityAutoHint: 'Picking a date auto-sets priority: ≤2d high · 3-5d medium · 5d+ low',
     selectPriority: 'Select priority',
     dueDate: 'Due Date',
     selectDate: 'Select date',
@@ -1611,6 +1753,28 @@ const LANG_PACKS = {
     cat_finance: '💰 Finance',
     cat_other: '📌 Other',
     uncategorized: 'Uncategorized',
+    manageCategories: '⚙️ Manage Categories',
+    builtinCategories: 'Built-in',
+    customCategories: 'Custom',
+    builtinNoEdit: 'Built-in categories cannot be modified',
+    addCategory: 'Add Category',
+    saveCategory: 'Save Category',
+    cancelEdit: 'Cancel',
+    editCategory: 'Edit',
+    deleteCategory: 'Delete',
+    categoryName: 'Category Name',
+    categoryNamePlaceholder: 'e.g. cs639, a course...',
+    categoryColor: 'Color',
+    enterCategoryName: 'Please enter a category name',
+    categoryNameTooLong: 'Category name is limited to 30 characters',
+    categoryNameConflict: 'This category name already exists',
+    categoryNameBuiltin: 'Cannot use built-in names (Work/Personal/Health/Finance/Other)',
+    confirmDeleteCategory: 'Tasks under this category will be moved to Other. Delete?',
+    categoryAdded: 'Category added',
+    categoryUpdated: 'Category updated',
+    categoryDeleted: 'Category deleted',
+    tasksUnit: 'tasks',
+    noCustomCategories: 'No custom categories yet. Type a name and click "Add Category".',
     pri_high: '🔴 High',
     pri_medium: '🟡 Medium',
     pri_low: '🟢 Low',
@@ -1663,6 +1827,9 @@ const LANG_PACKS = {
     login: 'ログイン',
     hasAccount: 'アカウントをお持ちですか？ログイン',
     noAccount: 'アカウントなし？新規登録',
+    or: 'または',
+    guestModeEnter: 'ログインせずにローカルで使う',
+    guestModeHint: 'ローカルモード：データはこのブラウザのみに保存され、クラウドには同期されません',
     enterUsername: 'ユーザー名を入力してください',
     usernameMin3: 'ユーザー名は3文字以上必要です',
     passwordMin6: 'パスワードは6文字以上必要です',
@@ -1698,7 +1865,12 @@ const LANG_PACKS = {
     descPlaceholder: 'タスクの詳細（任意）',
     category: 'カテゴリ',
     selectCategory: 'カテゴリ選択',
+    categoryHint: '新しいカテゴリ名を直接入力してEnterで作成できます',
+    categoryColor: 'カラー',
+    categoryColorHint: 'カテゴリの色を選択（既存カテゴリも再配色されます）',
+    newCategoryColor: '新規カテゴリ色',
     priority: '優先度',
+    priorityAutoHint: '日付選択で自動設定：2日以内 高 · 3〜5日 中 · 5日超 低',
     selectPriority: '優先度選択',
     dueDate: '期限日',
     selectDate: '日付選択',
@@ -1756,6 +1928,28 @@ const LANG_PACKS = {
     cat_finance: '💰 財務',
     cat_other: '📌 その他',
     uncategorized: '未分類',
+    manageCategories: '⚙️ カテゴリ管理',
+    builtinCategories: '組み込み',
+    customCategories: 'カスタム',
+    builtinNoEdit: '組み込みカテゴリは変更できません',
+    addCategory: '追加',
+    saveCategory: '保存',
+    cancelEdit: 'キャンセル',
+    editCategory: '編集',
+    deleteCategory: '削除',
+    categoryName: 'カテゴリ名',
+    categoryNamePlaceholder: '例：cs639、授業名…',
+    categoryColor: '色',
+    enterCategoryName: 'カテゴリ名を入力してください',
+    categoryNameTooLong: 'カテゴリ名は30文字以内です',
+    categoryNameConflict: 'このカテゴリ名は既に存在します',
+    categoryNameBuiltin: '組み込みカテゴリ名は使用できません',
+    confirmDeleteCategory: 'このカテゴリのタスクは「その他」に移動します。削除しますか？',
+    categoryAdded: 'カテゴリを追加しました',
+    categoryUpdated: 'カテゴリを更新しました',
+    categoryDeleted: 'カテゴリを削除しました',
+    tasksUnit: '件',
+    noCustomCategories: 'カスタムカテゴリはまだありません。名前を入力して「追加」を押してください',
     pri_high: '🔴 高',
     pri_medium: '🟡 中',
     pri_low: '🟢 低',
@@ -1812,12 +2006,23 @@ const app = createApp({
     // ==================== STATE ====================
     const tasks = ref([]);
     const alarms = ref([]);
+    // 用户自定义分类：{ id, name, color, sortOrder }，任务 category 直接存分类 name
+    const customCategories = ref([]);
+    // 内置分类的颜色覆盖（用户在任务弹窗里给 work/personal/… 重新配色）
+    // 自定义分类的颜色直接存在 customCategories 里，不需要走这里。
+    const catColorOverrides = ref(loadCatColorOverrides());
+    const BUILTIN_CATEGORY_KEYS = ['work', 'personal', 'health', 'finance', 'other'];
     const filter = ref('all');
     const searchQuery = ref('');
     const categoryFilter = ref('');
     const priorityFilter = ref('');
+    // Which category groups are collapsed in the grouped task view (persisted)
+    const collapsedGroups = ref(loadCollapsedGroups());
     const showAddDialog = ref(false);
     const showAlarmDialog = ref(false);
+    const catPalette = ['#2563EB', '#7C3AED', '#10B981', '#D97706', '#EF4444',
+                        '#EC4899', '#06B6D4', '#84CC16', '#F59E0B', '#6366F1',
+                        '#14B8A6', '#F43F5E', '#8B5CF6', '#3B82F6', '#0EA5E9'];
     const editingTaskId = ref(null);
     const editingTaskDocId = ref(null);
     const notifyToast = ref({ show: false, title: '', desc: '', closing: false });
@@ -1834,6 +2039,7 @@ const app = createApp({
     // ==================== AUTH STATE ====================
     const currentUser = ref(null);
     const isLoggedIn = ref(false);
+    const guestMode = ref(false); // entered without login — data stays local
     const isRegistering = ref(false);
     const loginError = ref('');
     const loginLoading = ref(false);
@@ -1842,6 +2048,22 @@ const app = createApp({
     // ==================== AUTH METHODS ====================
     const toggleRegister = function() {
       isRegistering.value = !isRegistering.value;
+      loginError.value = '';
+    };
+
+    // Guest mode: use the app fully offline with no database account
+    const enterGuestMode = function() {
+      guestMode.value = true;
+      isRegistering.value = false;
+      loginError.value = '';
+      if (syncStatus.value === 'connecting') syncStatus.value = 'local';
+      if (tasks.value.length === 0) seedDemoData();
+      TDesign.MessagePlugin.info(t('guestModeHint'));
+    };
+    const exitGuestMode = function() {
+      // Re-show the login overlay so the user can sign in / register
+      guestMode.value = false;
+      isRegistering.value = false;
       loginError.value = '';
     };
 
@@ -1892,6 +2114,7 @@ const app = createApp({
       if (!confirm(t('logoutConfirm'))) return;
       currentUser.value = null;
       isLoggedIn.value = false;
+      guestMode.value = false;
       localStorage.removeItem('tasktap_user');
       setToken('');
       tasks.value = [];
@@ -1924,6 +2147,7 @@ const app = createApp({
         // Clear local state
         currentUser.value = null;
         isLoggedIn.value = false;
+        guestMode.value = false;
         localStorage.removeItem('tasktap_user');
         setToken('');
         tasks.value = [];
@@ -1986,7 +2210,9 @@ const app = createApp({
       dueTime: '',
       checkInEnabled: false,
       checkInGoal: 21,
-      checkInMode: 'daily'
+      checkInMode: 'daily',
+      newCatColor: categoryColor('work') || catPalette[0],
+      priorityTouched: false
     });
 
     const alarmForm = ref({
@@ -1999,15 +2225,29 @@ const app = createApp({
     const popupBody = { attach: 'body' };
     const autosizeConfig = { minRows: 2, maxRows: 4 };
 
-    // Static option lists — computed for i18n reactivity
-    const categoryOptions = computed(function() {
-      return [
-        { value: 'work', label: t('cat_work') },
-        { value: 'personal', label: t('cat_personal') },
-        { value: 'health', label: t('cat_health') },
-        { value: 'finance', label: t('cat_finance') },
-        { value: 'other', label: t('cat_other') }
+    // All categories — built-in first, then user custom ones (merged view)
+    const categoryList = computed(function() {
+      var builtin = [
+        { key: 'work',     label: t('cat_work'),     color: categoryColor('work') },
+        { key: 'personal', label: t('cat_personal'), color: categoryColor('personal') },
+        { key: 'health',   label: t('cat_health'),   color: categoryColor('health') },
+        { key: 'finance',  label: t('cat_finance'),  color: categoryColor('finance') },
+        { key: 'other',    label: t('cat_other'),    color: categoryColor('other') }
       ];
+      var custom = customCategories.value.map(function(c) {
+        return { key: c.name, label: c.name, color: categoryColor(c.name), custom: true };
+      });
+      return builtin.concat(custom);
+    });
+    const builtinCategoryView = computed(function() {
+      return categoryList.value.filter(function(c) { return !c.custom; });
+    });
+
+    // Option lists — computed for i18n + custom category reactivity
+    const categoryOptions = computed(function() {
+      return categoryList.value.map(function(c) {
+        return { value: c.key, label: c.label };
+      });
     });
     const priorityOptions = computed(function() {
       return [
@@ -2022,6 +2262,31 @@ const app = createApp({
         { value: 'counter', label: t('mode_counter') }
       ];
     });
+
+    // When the user picks an existing category in the dialog, pre-select its
+    // current color on the swatch row. Brand-new names keep the chosen color.
+    function onTaskCategoryChange(v) {
+      var existingColor = categoryColor(v);
+      if (existingColor) form.value.newCatColor = existingColor;
+    }
+
+    // Suggested priority from a due date:
+    //   ≤2 days away (incl. overdue/today) → high
+    //   3–5 days away                       → medium
+    //   >5 days away                        → low
+    // Empty/invalid dates return '' (no suggestion → keep manual choice).
+    function autoPriorityForDate(dateStr) {
+      if (!dateStr) return '';
+      var parts = String(dateStr).split('-');
+      if (parts.length !== 3) return '';
+      var due = Date.UTC(+parts[0], (+parts[1] - 1), +parts[2]);
+      var n = new Date();
+      var today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+      var diffDays = Math.round((due - today) / 86400000);
+      if (diffDays <= 2) return 'high';
+      if (diffDays <= 5) return 'medium';
+      return 'low';
+    }
 
     // ==================== SYNC STATUS ====================
     const syncStatusClass = computed(function() { return syncStatus.value; });
@@ -2132,6 +2397,64 @@ const app = createApp({
     async function op_deleteAlarm(id) {
       var res = await apiDelAlarm(id);
       return { deleted: id };
+    }
+
+    // Custom categories (cloud API or local fallback)
+    async function op_loadCategories() {
+      if (connMode.value === 'cloudfunc') {
+        var res = await apiGetCategories();
+        return (res.data || []).map(function(c) {
+          return { id: c.id, name: c.name, color: c.color || '', sortOrder: c.sortOrder || 0 };
+        });
+      }
+      return loadLocalCategories();
+    }
+
+    async function op_addCategory(name, color) {
+      var item;
+      if (connMode.value === 'cloudfunc') {
+        var res = await apiAddCategory({ name: name, color: color });
+        item = { id: res.data.id, name: res.data.name, color: res.data.color || color, sortOrder: res.data.sortOrder || 0 };
+      } else {
+        item = { id: 'cat_local_' + Date.now(), name: name, color: color, sortOrder: Date.now() };
+      }
+      customCategories.value.push(item);
+      return item;
+    }
+
+    async function op_updateCategory(id, name, color) {
+      if (connMode.value === 'cloudfunc') {
+        var res = await apiUpdCategory({ id: id, name: name, color: color });
+        return { id: res.data.id, name: res.data.name, color: res.data.color || color, sortOrder: res.data.sortOrder || 0 };
+      }
+      return null; // local mode: caller mutates the array directly
+    }
+
+    // Apply the color picked in the task dialog to whichever category the
+    // task belongs to: built-in → color override; existing custom → update
+    // its stored color; a brand-new category is handled by ensureCategoryRegistered.
+    async function applySelectedCategoryColor(name, color) {
+      var n = String(name || '').trim();
+      if (!n || !color) return;
+      if (BUILTIN_CATEGORY_KEYS.indexOf(n) !== -1) {
+        if (catColorOverrides.value[n] !== color) {
+          catColorOverrides.value[n] = color;
+          saveCatColorOverrides();
+        }
+        return;
+      }
+      var c = customCategories.value.find(function(x) { return x.name === n; });
+      if (c && c.color !== color) {
+        if (connMode.value === 'cloudfunc') {
+          try {
+            await op_updateCategory(c.id, c.name, color);
+          } catch(e) {
+            console.error('Update category color failed:', e);
+          }
+        }
+        c.color = color;
+        saveLocalCategories();
+      }
     }
 
     // Local fallback operations
@@ -2267,6 +2590,33 @@ const app = createApp({
       }
     }
 
+    // Custom categories persisted locally (used as primary store in local mode,
+    // and as an offline backup in cloud mode)
+    function loadLocalCategories() {
+      try {
+        var raw = localStorage.getItem('tr_categories');
+        var arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch(e) { return []; }
+    }
+    function saveLocalCategories() {
+      try {
+        localStorage.setItem('tr_categories', JSON.stringify(customCategories.value));
+      } catch(e) {}
+    }
+    function loadCatColorOverrides() {
+      try {
+        var raw = localStorage.getItem('tr_cat_color_overrides');
+        var obj = raw ? JSON.parse(raw) : {};
+        return (obj && typeof obj === 'object') ? obj : {};
+      } catch(e) { return {}; }
+    }
+    function saveCatColorOverrides() {
+      try {
+        localStorage.setItem('tr_cat_color_overrides', JSON.stringify(catColorOverrides.value));
+      } catch(e) {}
+    }
+
     function seedDemoData() {
       var today = new Date();
       var tomorrow = new Date(today);
@@ -2292,6 +2642,25 @@ const app = createApp({
     }
 
     // ==================== HELPERS ====================
+    function loadCollapsedGroups() {
+      try {
+        var raw = localStorage.getItem('tr_collapsed_groups');
+        var arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch(e) { return []; }
+    }
+    function persistCollapsedGroups() {
+      try { localStorage.setItem('tr_collapsed_groups', JSON.stringify(collapsedGroups.value)); } catch(e) {}
+    }
+    function isGroupCollapsed(key) {
+      return collapsedGroups.value.indexOf(key) !== -1;
+    }
+    function toggleGroupCollapsed(key) {
+      var i = collapsedGroups.value.indexOf(key);
+      if (i === -1) collapsedGroups.value.push(key);
+      else collapsedGroups.value.splice(i, 1);
+      persistCollapsedGroups();
+    }
     function normalizeDate(val) {
       if (!val) return '';
       if (typeof val === 'string') return val;
@@ -2316,7 +2685,32 @@ const app = createApp({
 
     function categoryLabel(cat) {
       var map = { work: t('cat_work'), personal: t('cat_personal'), health: t('cat_health'), finance: t('cat_finance'), other: t('cat_other') };
-      return map[cat] || cat || t('uncategorized');
+      if (map[cat]) return map[cat];
+      if (cat) return cat; // custom category names are displayed as-is
+      return t('uncategorized');
+    }
+    function categoryColor(cat) {
+      if (!cat) return '';
+      // 1. user color override (any category, incl. built-ins)
+      if (catColorOverrides.value[cat]) return catColorOverrides.value[cat];
+      // 2. custom category stored color
+      var c = customCategories.value.find(function(x) { return x.name === cat; });
+      if (c && c.color) return c.color;
+      // 3. built-in default colors
+      var m = { work: '#2563EB', personal: '#7C3AED', health: '#10B981', finance: '#D97706', other: '#64748B' };
+      return m[cat] || '';
+    }
+    function catTagClass(cat) {
+      // Built-ins use CSS classes, unless the user re-colored them (→ fall back to inline style).
+      if (BUILTIN_CATEGORY_KEYS.indexOf(cat) !== -1) return catColorOverrides.value[cat] ? 'misc' : cat;
+      return 'misc';                                             // generic tag
+    }
+    function catTagStyle(cat) {
+      var col = categoryColor(cat);
+      if (!col) return null;
+      var isBuiltin = BUILTIN_CATEGORY_KEYS.indexOf(cat) !== -1;
+      if (isBuiltin && !catColorOverrides.value[cat]) return null; // CSS-colored built-ins
+      return { background: col, color: '#ffffff' };
     }
     function priorityLabel(p) {
       var m = { high: t('pri_high_short'), medium: t('pri_medium_short'), low: t('pri_low_short') };
@@ -2371,12 +2765,22 @@ const app = createApp({
       if (categoryFilter.value) result = result.filter(function(t) { return t.category === categoryFilter.value; });
       if (priorityFilter.value) result = result.filter(function(t) { return t.priority === priorityFilter.value; });
 
+      // Ordering: dated tasks first (by due date+time, earliest on top),
+      // then undated tasks sorted by priority (high→low), newest first.
       result.sort(function(a, b) {
         var pOrder = { high: 0, medium: 1, low: 2 };
+        var hasA = !!a.dueDate;
+        var hasB = !!b.dueDate;
+        if (hasA && hasB) {
+          var keyA = a.dueDate + ' ' + (a.dueTime || '');
+          var keyB = b.dueDate + ' ' + (b.dueTime || '');
+          if (keyA !== keyB) return keyA < keyB ? -1 : 1;
+          if (a.priority !== b.priority) return pOrder[a.priority] - pOrder[b.priority];
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        }
+        if (hasA) return -1;
+        if (hasB) return 1;
         if (a.priority !== b.priority) return pOrder[a.priority] - pOrder[b.priority];
-        if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-        if (a.dueDate) return -1;
-        if (b.dueDate) return 1;
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
 
@@ -2384,19 +2788,48 @@ const app = createApp({
     });
 
     const categoryStats = computed(function() {
-      var cats = [
-        { key: 'work', label: t('cat_work'), color: '#2563EB', count: 0 },
-        { key: 'personal', label: t('cat_personal'), color: '#7C3AED', count: 0 },
-        { key: 'health', label: t('cat_health'), color: '#10B981', count: 0 },
-        { key: 'finance', label: t('cat_finance'), color: '#D97706', count: 0 },
-        { key: 'other', label: t('cat_other'), color: '#64748B', count: 0 },
-      ];
       var total = totalTasks.value;
+      var cats = categoryList.value.map(function(c) {
+        return { key: c.key, label: c.label, color: c.color, count: 0, percent: 0 };
+      });
       cats.forEach(function(c) {
         c.count = tasks.value.filter(function(t) { return t.category === c.key; }).length;
         c.percent = total > 0 ? Math.round(c.count / total * 100) : 0;
       });
-      return cats;
+      // Only show categories that actually have tasks; empty ones are hidden
+      return cats.filter(function(c) { return c.count > 0; });
+    });
+
+    // Group filtered tasks by category for the collapsible view.
+    // Group order follows categoryList (built-ins first, then customs);
+    // tasks with an unknown/blank category end up at the bottom.
+    const taskGroups = computed(function() {
+      var list = filteredTasks.value;
+      var order = {};
+      categoryList.value.forEach(function(c, i) { order[c.key] = i; });
+      var map = {};
+      var groups = [];
+      list.forEach(function(t) {
+        var raw = (t.category || '').trim();
+        if (!Object.prototype.hasOwnProperty.call(map, raw)) {
+          map[raw] = [];
+          groups.push({ key: raw, items: map[raw] });
+        }
+        map[raw].push(t);
+      });
+      groups.forEach(function(g) {
+        var c = g.key ? categoryList.value.find(function(x) { return x.key === g.key; }) : null;
+        var color = (c && c.color) ? c.color : (categoryColor(g.key) || '#94A3B8');
+        g.label = c ? c.label : (g.key ? g.key : t('uncategorized'));
+        g.color = color;
+        g.dotStyle = { background: color };
+        g.sortIndex = (g.key && order[g.key] !== undefined) ? order[g.key] : 99;
+      });
+      groups.sort(function(a, b) {
+        if (a.sortIndex !== b.sortIndex) return a.sortIndex - b.sortIndex;
+        return 0;
+      });
+      return groups;
     });
 
     // ==================== DIALOG HANDLERS ====================
@@ -2406,6 +2839,24 @@ const app = createApp({
     const dialogConfirmText = ref(t('createTask'));
     // Internal flag for create vs update logic — NOT exposed to template
     const isEditing = ref(false);
+
+    // Ensure a category exists. Used when a task is saved with a brand-new
+    // category name typed directly in the task dialog — auto-register it.
+    async function ensureCategoryRegistered(name, preferredColor) {
+      var n = String(name || '').trim().slice(0, 30);
+      if (!n) return 'other';
+      if (BUILTIN_CATEGORY_KEYS.indexOf(n) !== -1) return n;
+      var exists = customCategories.value.find(function(c) { return c.name === n; });
+      if (exists) return exists.name;
+      var color = preferredColor || catPalette[customCategories.value.length % catPalette.length];
+      try {
+        await op_addCategory(n, color);
+      } catch(e) {
+        console.error('Auto-create category failed:', e);
+      }
+      saveLocalCategories();
+      return n;
+    }
 
     // ==================== CALENDAR CHECK-IN ====================
     const showCalendarDialog = ref(false);
@@ -2521,7 +2972,7 @@ const app = createApp({
       isEditing.value = false;
       editingTaskId.value = null;
       editingTaskDocId.value = null;
-      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily' };
+      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily', newCatColor: categoryColor('work') || catPalette[0], priorityTouched: false };
       dialogTitle.value = t('newTaskDialog');
       dialogConfirmText.value = t('createTask');
       showAddDialog.value = true;
@@ -2531,6 +2982,11 @@ const app = createApp({
       isEditing.value = true;
       editingTaskId.value = task.id;
       editingTaskDocId.value = task._id;
+      // If the stored priority already differs from what its due date would
+      // suggest, the user had deliberately customized it — keep it that way
+      // and don't let due-date changes silently overwrite it.
+      var prioTouched = !!(task.dueDate && task.priority &&
+        task.priority !== autoPriorityForDate(task.dueDate));
       form.value = {
         title: task.title || '',
         description: task.description || '',
@@ -2540,7 +2996,9 @@ const app = createApp({
         dueTime: task.dueTime || '',
         checkInEnabled: !!task.checkInEnabled,
         checkInGoal: Number(task.checkInGoal) || 21,
-        checkInMode: task.checkInMode || 'daily'
+        checkInMode: task.checkInMode || 'daily',
+        newCatColor: categoryColor(task.category || 'work') || catPalette[0],
+        priorityTouched: prioTouched
       };
       dialogTitle.value = t('editTask');
       dialogConfirmText.value = t('saveChanges');
@@ -2553,10 +3011,17 @@ const app = createApp({
         return;
       }
 
+      // Resolve category: built-in key / existing custom / auto-create a new one
+      // (creatable select may hold a name that was just typed by the user)
+      var resolvedCategory = await ensureCategoryRegistered(form.value.category, form.value.newCatColor);
+      // Apply the picked color to the category itself (re-color existing ones,
+      // brand-new ones already got it from ensureCategoryRegistered).
+      await applySelectedCategoryColor(resolvedCategory, form.value.newCatColor);
+
       var taskData = {
         title: form.value.title.trim(),
         description: form.value.description.trim(),
-        category: form.value.category,
+        category: resolvedCategory,
         priority: form.value.priority,
         dueDate: normalizeDate(form.value.dueDate),
         dueTime: normalizeTime(form.value.dueTime),
@@ -2728,7 +3193,7 @@ const app = createApp({
       // mutating dialog props during close animation causes a render loop.
       editingTaskId.value = null;
       editingTaskDocId.value = null;
-      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily' };
+      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily', newCatColor: categoryColor('work') || catPalette[0], priorityTouched: false };
     };
 
     // ==================== ALARM HANDLERS ====================
@@ -2931,6 +3396,7 @@ const app = createApp({
         log('No session token');
         syncStatus.value = 'local';
         loadLocalData();
+        customCategories.value = await op_loadCategories();
         if (tasks.value.length === 0) seedDemoData();
         isLoading.value = false;
         return;
@@ -2971,6 +3437,15 @@ const app = createApp({
         tasks.value = taskData.length > 0 ? taskData.map(normalizeTaskFromDB) : [];
         alarms.value = alarmData.map(normalizeAlarmFromDB);
 
+        // Load custom categories from cloud, keep a local backup
+        try {
+          customCategories.value = await op_loadCategories();
+          saveLocalCategories();
+        } catch(catErr) {
+          log('Custom categories load failed: ' + (catErr.message || catErr));
+          customCategories.value = [];
+        }
+
         // Seed demo data if first time (per user)
         var cloudSeeded = false;
         try {
@@ -3009,6 +3484,7 @@ const app = createApp({
         log('DB load FAILED: ' + errMsg);
         syncStatus.value = 'local';
         loadLocalData();
+        customCategories.value = await op_loadCategories();
         if (tasks.value.length === 0) seedDemoData();
         showSyncBanner('云端暂不可用，使用本地存储', 'syncing', 5000);
         isLoading.value = false;
@@ -3043,6 +3519,16 @@ const app = createApp({
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(saveLocalData, 500);
     }, { deep: true });
+    watch(customCategories, function() {
+      saveLocalCategories();
+    }, { deep: true });
+    // Auto-default the priority from the chosen due date, unless the user
+    // deliberately picked a priority themselves (priorityTouched).
+    watch(function() { return form.value.dueDate; }, function(nv) {
+      if (form.value.priorityTouched) return;
+      var auto = autoPriorityForDate(nv);
+      if (auto) form.value.priority = auto;
+    });
 
     return {
       tasks, alarms, filter, searchQuery, categoryFilter, priorityFilter,
@@ -3051,6 +3537,8 @@ const app = createApp({
       form, alarmForm,
       completedCount, urgentCount, totalTasks, activeAlarmsCount,
       hasActiveFilter, filteredTasks, categoryStats,
+      taskGroups, isGroupCollapsed, toggleGroupCollapsed,
+      onTaskCategoryChange,
       normalizeDate, normalizeTime, fmtDateString, todayDisplay,
       categoryLabel, priorityLabel, priorityTheme,
       openAddDialog, openEditDialog, handleTaskConfirm,
@@ -3061,9 +3549,12 @@ const app = createApp({
       calendarTask, calYear, calMonth, calWeekDays, calDates,
       calPrevMonth, calNextMonth, calToggleDate,
       categoryOptions, priorityOptions, checkInModeOptions,
+      categoryList, builtinCategoryView, customCategories, categoryColor, catTagClass, catTagStyle,
+      catPalette,
       // Auth
-      currentUser, isLoggedIn, isRegistering, loginError, loginLoading, loginForm,
+      currentUser, isLoggedIn, isRegistering, guestMode, loginError, loginLoading, loginForm,
       handleLogin, handleLogout, handleDeleteAccount, toggleRegister,
+      enterGuestMode, exitGuestMode,
       // I18N
       locale, t, switchLocale
     };

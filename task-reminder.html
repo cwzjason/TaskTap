@@ -136,18 +136,6 @@ body > .t-popup { z-index: 3000 !important; }
   color: var(--accent-purple); cursor: pointer; font-weight: 500; text-decoration: none;
 }
 .login-card .login-toggle a:hover { text-decoration: underline; }
-.login-card .login-divider {
-  display: flex; align-items: center; gap: 10px; margin: 18px 0 12px;
-  color: var(--text-muted); font-size: 12px; white-space: nowrap;
-}
-.login-card .login-divider::before,
-.login-card .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
-.login-card .guest-btn {
-  width: 100%; padding: 12px; background: #fff; color: var(--text-secondary);
-  border: 1.5px dashed var(--border-light); border-radius: 12px;
-  font-size: 14px; cursor: pointer; transition: all .2s;
-}
-.login-card .guest-btn:hover { border-color: var(--accent-purple); color: var(--accent-purple); background: rgba(124,58,237,0.04); }
 
 /* ===== User Badge ===== */
 .user-badge {
@@ -875,7 +863,7 @@ body::before {
 
 <div id="app">
   <!-- Login Overlay -->
-  <div class="login-overlay" v-if="!isLoggedIn && !guestMode && !isLoading">
+  <div class="login-overlay" v-if="!isLoggedIn && !isLoading">
     <div class="login-card">
       <div class="lang-switcher" style="position:absolute;top:16px;right:20px;">
         <button :class="'lang-btn' + (locale === 'zh-CN' ? ' active' : '')" @click="switchLocale('zh-CN')">中</button>
@@ -900,11 +888,6 @@ body::before {
       </form>
       <div class="login-toggle">
         <a @click="toggleRegister">{{ isRegistering ? t('hasAccount') : t('noAccount') }}</a>
-      </div>
-      <!-- Enter without a database account — data stays in this browser -->
-      <div v-if="!isRegistering">
-        <div class="login-divider">{{ t('or') }}</div>
-        <button type="button" class="guest-btn" @click="enterGuestMode">🚀 {{ t('guestModeEnter') }}</button>
       </div>
     </div>
   </div>
@@ -965,7 +948,6 @@ body::before {
           <span class="sync-dot"></span>
           {{ syncStatusText }}
         </div>
-        <t-button v-if="guestMode && !isLoggedIn" theme="default" variant="text" @click="exitGuestMode">🔑 {{ t('login') }}</t-button>
         <div class="header-actions">
           <t-button theme="default" variant="outline" @click="openAlarmDialog">
             {{ t('setAlarm') }}
@@ -1553,9 +1535,6 @@ const LANG_PACKS = {
     login: '登录',
     hasAccount: '已有账号？去登录',
     noAccount: '没有账号？立即注册',
-    or: '或',
-    guestModeEnter: '不登录，本地试用',
-    guestModeHint: '本地模式：数据仅保存在当前浏览器，不会同步到云端',
     enterUsername: '请输入用户名',
     usernameMin3: '用户名至少3个字符',
     passwordMin6: '密码至少6位',
@@ -1752,9 +1731,6 @@ const LANG_PACKS = {
     login: 'Sign In',
     hasAccount: 'Already have an account? Sign In',
     noAccount: "Don't have an account? Sign Up",
-    or: 'or',
-    guestModeEnter: 'Try locally without login',
-    guestModeHint: 'Local mode: data is stored in this browser only, never synced to the cloud',
     enterUsername: 'Please enter username',
     usernameMin3: 'Username must be at least 3 characters',
     passwordMin6: 'Password must be at least 6 characters',
@@ -1934,9 +1910,6 @@ const LANG_PACKS = {
     login: 'ログイン',
     hasAccount: 'アカウントをお持ちですか？ログイン',
     noAccount: 'アカウントなし？新規登録',
-    or: 'または',
-    guestModeEnter: 'ログインせずにローカルで使う',
-    guestModeHint: 'ローカルモード：データはこのブラウザのみに保存され、クラウドには同期されません',
     enterUsername: 'ユーザー名を入力してください',
     usernameMin3: 'ユーザー名は3文字以上必要です',
     passwordMin6: 'パスワードは6文字以上必要です',
@@ -2153,7 +2126,6 @@ const app = createApp({
     // ==================== AUTH STATE ====================
     const currentUser = ref(null);
     const isLoggedIn = ref(false);
-    const guestMode = ref(false); // entered without login — data stays local
     const isRegistering = ref(false);
     const loginError = ref('');
     const loginLoading = ref(false);
@@ -2162,22 +2134,6 @@ const app = createApp({
     // ==================== AUTH METHODS ====================
     const toggleRegister = function() {
       isRegistering.value = !isRegistering.value;
-      loginError.value = '';
-    };
-
-    // Guest mode: use the app fully offline with no database account
-    const enterGuestMode = function() {
-      guestMode.value = true;
-      isRegistering.value = false;
-      loginError.value = '';
-      if (syncStatus.value === 'connecting') syncStatus.value = 'local';
-      if (tasks.value.length === 0) seedDemoData();
-      TDesign.MessagePlugin.info(t('guestModeHint'));
-    };
-    const exitGuestMode = function() {
-      // Re-show the login overlay so the user can sign in / register
-      guestMode.value = false;
-      isRegistering.value = false;
       loginError.value = '';
     };
 
@@ -2228,7 +2184,6 @@ const app = createApp({
       if (!confirm(t('logoutConfirm'))) return;
       currentUser.value = null;
       isLoggedIn.value = false;
-      guestMode.value = false;
       localStorage.removeItem('tasktap_user');
       setToken('');
       tasks.value = [];
@@ -2261,7 +2216,6 @@ const app = createApp({
         // Clear local state
         currentUser.value = null;
         isLoggedIn.value = false;
-        guestMode.value = false;
         localStorage.removeItem('tasktap_user');
         setToken('');
         tasks.value = [];
@@ -3770,9 +3724,8 @@ const app = createApp({
       categoryList, builtinCategoryView, customCategories, categoryColor, catTagClass, catTagStyle,
       catPalette,
       // Auth
-      currentUser, isLoggedIn, isRegistering, guestMode, loginError, loginLoading, loginForm,
+      currentUser, isLoggedIn, isRegistering, loginError, loginLoading, loginForm,
       handleLogin, handleLogout, handleDeleteAccount, toggleRegister,
-      enterGuestMode, exitGuestMode,
       // I18N
       locale, t, switchLocale
     };

@@ -1144,7 +1144,7 @@ body::before {
                       class="upcoming-due"
                       :class="{ overdue: dueDiff(task) < 0, soon: dueDiff(task) >= 0 && dueDiff(task) <= 2 }"
                     >{{ dueLabel(task) }}</span>
-                    <span class="upcoming-date">📅 {{ task.dueDate }} {{ task.dueTime || '' }}</span>
+                    <span class="upcoming-date" v-if="task.dueDate">📅 {{ task.dueDate }} {{ task.dueTime || '' }}</span>
                   </div>
                 </div>
                 <t-button
@@ -1158,6 +1158,35 @@ body::before {
             <div v-else class="empty-state" style="padding:32px 20px;">
               <div class="empty-icon">✅</div>
               <div class="empty-text">{{ t('noUpcomingTasks') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">{{ t('taskDistribution') }}</div>
+          </div>
+          <div class="panel-body">
+            <template v-if="categoryStats.length > 0">
+              <div style="margin-bottom:14px;" v-for="cat in categoryStats" :key="cat.key">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                  <span style="color:var(--text-secondary);">{{ cat.label }}</span>
+                  <span style="font-weight:600;color:var(--text-primary);">{{ cat.count }}</span>
+                </div>
+                <div style="height:6px;background:var(--bg-page);border-radius:3px;overflow:hidden;">
+                  <div :style="{
+                    width: cat.percent + '%',
+                    height: '100%',
+                    borderRadius: '3px',
+                    background: cat.color,
+                    transition: 'width 0.6s ease'
+                  }"></div>
+                </div>
+              </div>
+            </template>
+            <div v-else style="text-align:center;color:var(--text-muted);font-size:13px;padding:12px 0;">
+              {{ t('noData') }}
             </div>
           </div>
         </div>
@@ -1192,35 +1221,6 @@ body::before {
             <div v-else class="empty-state" style="padding:32px 20px;">
               <div class="empty-icon">🔕</div>
               <div class="empty-text">{{ t('noAlarms') }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Stats Panel -->
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">{{ t('taskDistribution') }}</div>
-          </div>
-          <div class="panel-body">
-            <template v-if="categoryStats.length > 0">
-              <div style="margin-bottom:14px;" v-for="cat in categoryStats" :key="cat.key">
-                <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                  <span style="color:var(--text-secondary);">{{ cat.label }}</span>
-                  <span style="font-weight:600;color:var(--text-primary);">{{ cat.count }}</span>
-                </div>
-                <div style="height:6px;background:var(--bg-page);border-radius:3px;overflow:hidden;">
-                  <div :style="{
-                    width: cat.percent + '%',
-                    height: '100%',
-                    borderRadius: '3px',
-                    background: cat.color,
-                    transition: 'width 0.6s ease'
-                  }"></div>
-                </div>
-              </div>
-            </template>
-            <div v-else style="text-align:center;color:var(--text-muted);font-size:13px;padding:12px 0;">
-              {{ t('noData') }}
             </div>
           </div>
         </div>
@@ -1606,6 +1606,7 @@ const LANG_PACKS = {
     // Upcoming
     upcomingTasks: '即将到来',
     noUpcomingTasks: '暂无待办任务',
+    noDueDate: '无截止日期',
     dueToday: '今天到期',
     dueTomorrow: '明天到期',
     daysLeft: '还剩 {n} 天',
@@ -1794,6 +1795,7 @@ const LANG_PACKS = {
     weekdayNames: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
     upcomingTasks: 'Upcoming Tasks',
     noUpcomingTasks: 'No upcoming tasks',
+    noDueDate: 'No due date',
     dueToday: 'Due today',
     dueTomorrow: 'Due tomorrow',
     daysLeft: '{n} days left',
@@ -1973,6 +1975,7 @@ const LANG_PACKS = {
     weekdayNames: ['日','月','火','水','木','金','土'],
     upcomingTasks: '近日のタスク',
     noUpcomingTasks: '予定されたタスクはありません',
+    noDueDate: '期限なし',
     dueToday: '本日期限',
     dueTomorrow: '明日期限',
     daysLeft: '残り{n}日',
@@ -2865,18 +2868,28 @@ const app = createApp({
     const urgentCount = computed(function() {
       return tasks.value.filter(function(t) { return displayPriority(t) === 'high' && !t.completed; }).length;
     });
-    // Sidebar "upcoming" panel: the 5 pending tasks with a due date, soonest
-    // first. Tasks sharing a day are ordered by their due time.
+    // Sidebar "upcoming" panel: every pending task. Dated tasks come first
+    // (soonest at the top, ties broken by due time); undated tasks follow,
+    // ordered by priority and then newest first.
     const upcomingTasks = computed(function() {
+      var order = { high: 0, medium: 1, low: 2 };
       return tasks.value
-        .filter(function(t) { return !t.completed && t.dueDate; })
+        .filter(function(t) { return !t.completed; })
         .slice()
         .sort(function(a, b) {
+          var ha = !!a.dueDate, hb = !!b.dueDate;
+          if (ha !== hb) return ha ? -1 : 1;
+          if (!ha) {
+            var pa = order[displayPriority(a)], pb = order[displayPriority(b)];
+            if (pa !== pb) return (pa === undefined ? 9 : pa) - (pb === undefined ? 9 : pb);
+            return (b.createdAt || 0) - (a.createdAt || 0);
+          }
           var d = parseDueDate(a.dueDate) - parseDueDate(b.dueDate);
           if (d) return d;
-          return parseDueTime(a.dueTime) - parseDueTime(b.dueTime);
-        })
-        .slice(0, 5);
+          var diff = parseDueTime(a.dueTime) - parseDueTime(b.dueTime);
+          if (diff) return diff;
+          return (order[displayPriority(a)] || 0) - (order[displayPriority(b)] || 0);
+        });
     });
     // Days until the due date — negative means overdue.
     function dueDiff(task) {
@@ -2884,6 +2897,7 @@ const app = createApp({
       return d === null ? 0 : d;
     }
     function dueLabel(task) {
+      if (!task.dueDate) return t('noDueDate');
       var d = dueDiff(task);
       if (d < 0) return t('overdueDays').replace('{n}', Math.abs(d));
       if (d === 0) return t('dueToday');

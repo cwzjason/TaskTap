@@ -600,6 +600,57 @@ body > .t-popup { z-index: 3000 !important; }
 }
 .alarm-countdown.soon { color: var(--danger); }
 
+/* ===== Upcoming Tasks (sidebar) ===== */
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.upcoming-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-page);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.upcoming-item:hover { background: var(--primary-blue-pale); border-color: var(--primary-blue-light); }
+.upcoming-info { flex: 1; min-width: 0; }
+.upcoming-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.upcoming-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.upcoming-due { font-weight: 600; color: var(--accent-purple); white-space: nowrap; }
+.upcoming-due.overdue { color: var(--danger); }
+.upcoming-due.soon { color: var(--danger); }
+.upcoming-date { white-space: nowrap; }
+.panel-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-blue);
+  background: var(--primary-blue-pale);
+  padding: 2px 9px;
+  border-radius: 20px;
+}
+
 /* ===== Empty State ===== */
 .empty-state {
   text-align: center;
@@ -1089,6 +1140,46 @@ body::before {
 
       <!-- Right: Sidebar -->
       <div class="sidebar">
+        <!-- Upcoming Tasks Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">{{ t('upcomingTasks') }}</div>
+            <span class="panel-count" v-if="upcomingTasks.length > 0">{{ upcomingTasks.length }}</span>
+          </div>
+          <div class="panel-body" style="padding-top: 12px;">
+            <div class="upcoming-list" v-if="upcomingTasks.length > 0">
+              <div
+                v-for="task in upcomingTasks"
+                :key="task._id || task.id"
+                class="upcoming-item"
+                @click="openEditDialog(task)"
+              >
+                <span class="task-priority-dot" :class="displayPriority(task)"></span>
+                <div class="upcoming-info">
+                  <div class="upcoming-title">{{ task.title }}</div>
+                  <div class="upcoming-meta">
+                    <span
+                      class="upcoming-due"
+                      :class="{ overdue: dueDiff(task) < 0, soon: dueDiff(task) >= 0 && dueDiff(task) <= 2 }"
+                    >{{ dueLabel(task) }}</span>
+                    <span class="upcoming-date">📅 {{ task.dueDate }} {{ task.dueTime || '' }}</span>
+                  </div>
+                </div>
+                <t-button
+                  theme="success"
+                  variant="text"
+                  size="small"
+                  @click.stop="toggleTask(task, true)"
+                >✓</t-button>
+              </div>
+            </div>
+            <div v-else class="empty-state" style="padding:32px 20px;">
+              <div class="empty-icon">✅</div>
+              <div class="empty-text">{{ t('noUpcomingTasks') }}</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Alarms Panel -->
         <div class="panel">
           <div class="panel-header">
@@ -1533,6 +1624,13 @@ const LANG_PACKS = {
     today: '今天',
     notChecked: '未打卡',
     weekdayNames: ['日','一','二','三','四','五','六'],
+    // Upcoming
+    upcomingTasks: '即将到来',
+    noUpcomingTasks: '暂无待办任务',
+    dueToday: '今天到期',
+    dueTomorrow: '明天到期',
+    daysLeft: '还剩 {n} 天',
+    overdueDays: '已逾期 {n} 天',
     // Alarm
     alarmReminder: '闹钟提醒',
     addAlarm: '＋ 添加',
@@ -1718,6 +1816,12 @@ const LANG_PACKS = {
     today: 'Today',
     notChecked: 'Not yet',
     weekdayNames: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    upcomingTasks: 'Upcoming Tasks',
+    noUpcomingTasks: 'No upcoming tasks',
+    dueToday: 'Due today',
+    dueTomorrow: 'Due tomorrow',
+    daysLeft: '{n} days left',
+    overdueDays: '{n} days overdue',
     alarmReminder: 'Alarms',
     addAlarm: '＋ Add',
     alarmName: 'Alarm Name',
@@ -1894,6 +1998,12 @@ const LANG_PACKS = {
     today: '今日',
     notChecked: '未完了',
     weekdayNames: ['日','月','火','水','木','金','土'],
+    upcomingTasks: '近日のタスク',
+    noUpcomingTasks: '予定されたタスクはありません',
+    dueToday: '本日期限',
+    dueTomorrow: '明日期限',
+    daysLeft: '残り{n}日',
+    overdueDays: '{n}日超過',
     alarmReminder: 'アラーム',
     addAlarm: '＋ 追加',
     alarmName: 'アラーム名',
@@ -2801,6 +2911,31 @@ const app = createApp({
     const urgentCount = computed(function() {
       return tasks.value.filter(function(t) { return displayPriority(t) === 'high' && !t.completed; }).length;
     });
+    // Sidebar "upcoming" panel: the 5 pending tasks with a due date, soonest
+    // first. Tasks sharing a day are ordered by their due time.
+    const upcomingTasks = computed(function() {
+      return tasks.value
+        .filter(function(t) { return !t.completed && t.dueDate; })
+        .slice()
+        .sort(function(a, b) {
+          var d = parseDueDate(a.dueDate) - parseDueDate(b.dueDate);
+          if (d) return d;
+          return parseDueTime(a.dueTime) - parseDueTime(b.dueTime);
+        })
+        .slice(0, 5);
+    });
+    // Days until the due date — negative means overdue.
+    function dueDiff(task) {
+      var d = dueDateDiffDays(task.dueDate);
+      return d === null ? 0 : d;
+    }
+    function dueLabel(task) {
+      var d = dueDiff(task);
+      if (d < 0) return t('overdueDays').replace('{n}', Math.abs(d));
+      if (d === 0) return t('dueToday');
+      if (d === 1) return t('dueTomorrow');
+      return t('daysLeft').replace('{n}', d);
+    }
     const totalTasks = computed(function() { return tasks.value.length; });
     const activeAlarmsCount = computed(function() {
       return alarms.value.filter(function(a) { return !a.dismissed; }).length;
@@ -3619,6 +3754,7 @@ const app = createApp({
       form, alarmForm,
       completedCount, urgentCount, totalTasks, activeAlarmsCount,
       hasActiveFilter, filteredTasks, categoryStats,
+      upcomingTasks, dueDiff, dueLabel, displayPriority,
       taskGroups, isGroupCollapsed, toggleGroupCollapsed,
       onTaskCategoryChange,
       normalizeDate, normalizeTime, fmtDateString, todayDisplay,

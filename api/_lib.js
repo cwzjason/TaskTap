@@ -80,6 +80,7 @@ function taskToApi(row) {
     description: row.description || '',
     category: row.category || 'work',
     priority: row.priority || 'medium',
+    priorityManual: !!row.priority_manual,
     dueDate: row.due_date || '',
     dueTime: row.due_time || '',
     completed: !!row.completed,
@@ -99,6 +100,7 @@ function taskToDb(data) {
   if (data.description !== undefined) out.description = data.description;
   if (data.category !== undefined) out.category = data.category;
   if (data.priority !== undefined) out.priority = data.priority;
+  if (data.priorityManual !== undefined) out.priority_manual = !!data.priorityManual;
   if (data.dueDate !== undefined) out.due_date = data.dueDate;
   if (data.dueTime !== undefined) out.due_time = data.dueTime;
   if (data.completed !== undefined) out.completed = !!data.completed;

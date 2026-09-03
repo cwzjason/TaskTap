@@ -1219,7 +1219,6 @@ body::before {
           :placeholder="t('selectPriority')"
           :popup-props="popupBody"
           :options="priorityOptions"
-          @change="form.priorityTouched = true"
         />
         <div class="field-hint">{{ t('priorityAutoHint') }}</div>
       </div>
@@ -1512,7 +1511,7 @@ const LANG_PACKS = {
     categoryColorHint: '为当前分类选择颜色（已有分类也会被重新配色）',
     newCategoryColor: '新分类颜色',
     priority: '优先级',
-    priorityAutoHint: '选日期后自动按剩余天数定级：≤2天高 · 3-5天中 · 5天以上低',
+    priorityAutoHint: '自动：按剩余天数定级（≤2天高 · 3-5天中 · >5天低）；手动指定后固定不变',
     selectPriority: '选择优先级',
     dueDate: '截止日期',
     selectDate: '选择日期',
@@ -1599,6 +1598,7 @@ const LANG_PACKS = {
     tasksUnit: '个任务',
     noCustomCategories: '暂无自定义分类，输入名称并点「添加分类」即可创建',
     // Priorities
+    pri_auto: '🤖 自动（按日期）',
     pri_high: '🔴 高优先级',
     pri_medium: '🟡 中优先级',
     pri_low: '🟢 低优先级',
@@ -1697,7 +1697,7 @@ const LANG_PACKS = {
     categoryColorHint: 'Pick a color for the category (also re-colors existing ones)',
     newCategoryColor: 'New category color',
     priority: 'Priority',
-    priorityAutoHint: 'Picking a date auto-sets priority: ≤2d high · 3-5d medium · 5d+ low',
+    priorityAutoHint: 'Auto: by days left (≤2d high · 3-5d medium · >5d low). A manual pick stays fixed.',
     selectPriority: 'Select priority',
     dueDate: 'Due Date',
     selectDate: 'Select date',
@@ -1777,6 +1777,7 @@ const LANG_PACKS = {
     categoryDeleted: 'Category deleted',
     tasksUnit: 'tasks',
     noCustomCategories: 'No custom categories yet. Type a name and click "Add Category".',
+    pri_auto: '🤖 Auto (by date)',
     pri_high: '🔴 High',
     pri_medium: '🟡 Medium',
     pri_low: '🟢 Low',
@@ -1872,7 +1873,7 @@ const LANG_PACKS = {
     categoryColorHint: 'カテゴリの色を選択（既存カテゴリも再配色されます）',
     newCategoryColor: '新規カテゴリ色',
     priority: '優先度',
-    priorityAutoHint: '日付選択で自動設定：2日以内 高 · 3〜5日 中 · 5日超 低',
+    priorityAutoHint: '自動：残り日数で判定（2日以内 高 · 3〜5日 中 · 5日超 低）。手動設定は固定されます',
     selectPriority: '優先度選択',
     dueDate: '期限日',
     selectDate: '日付選択',
@@ -1952,6 +1953,7 @@ const LANG_PACKS = {
     categoryDeleted: 'カテゴリを削除しました',
     tasksUnit: '件',
     noCustomCategories: 'カスタムカテゴリはまだありません。名前を入力して「追加」を押してください',
+    pri_auto: '🤖 自動（日付連動）',
     pri_high: '🔴 高',
     pri_medium: '🟡 中',
     pri_low: '🟢 低',
@@ -2207,14 +2209,15 @@ const app = createApp({
       title: '',
       description: '',
       category: 'work',
-      priority: 'medium',
+      // 'auto' = let the due date decide (sentinel, never persisted as-is);
+      // high/medium/low = an explicit manual pick, which then stays fixed.
+      priority: 'auto',
       dueDate: '',
       dueTime: '',
       checkInEnabled: false,
       checkInGoal: 21,
       checkInMode: 'daily',
-      newCatColor: categoryColor('work') || catPalette[0],
-      priorityTouched: false
+      newCatColor: categoryColor('work') || catPalette[0]
     });
 
     const alarmForm = ref({
@@ -2253,6 +2256,7 @@ const app = createApp({
     });
     const priorityOptions = computed(function() {
       return [
+        { value: 'auto', label: t('pri_auto') },
         { value: 'high', label: t('pri_high') },
         { value: 'medium', label: t('pri_medium') },
         { value: 'low', label: t('pri_low') }
@@ -2328,16 +2332,20 @@ const app = createApp({
       if (diff <= 5) return 'medium';
       return 'low';
     }
-    // The priority a task should show. Tasks WITH a due date are driven by the
-    // due date (auto escalate as the date approaches); tasks without one use
-    // the priority the user picked.
+    // The priority a task should show.
+    //  - If the user deliberately picked a priority (priorityManual), that
+    //    value is authoritative and must survive due-date changes.
+    //  - Otherwise (or when the stored value is the 'auto' sentinel) the due
+    //    date drives it, so it escalates automatically as the date approaches.
     function displayPriority(t) {
       if (!t) return 'medium';
+      var stored = t.priority && t.priority !== 'auto' ? t.priority : '';
+      if (t.priorityManual && stored) return stored;
       if (t.dueDate) {
         var auto = autoPriorityForDate(t.dueDate);
         if (auto) return auto;
       }
-      return t.priority || 'medium';
+      return stored || 'medium';
     }
 
     // ==================== SYNC STATUS ====================
@@ -2528,6 +2536,7 @@ const app = createApp({
         description: doc.description || '',
         category: doc.category || 'work',
         priority: doc.priority || 'medium',
+        priorityManual: !!doc.priorityManual,
         dueDate: doc.dueDate || '',
         dueTime: doc.dueTime || '',
         completed: !!doc.completed,
@@ -3047,7 +3056,7 @@ const app = createApp({
       isEditing.value = false;
       editingTaskId.value = null;
       editingTaskDocId.value = null;
-      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily', newCatColor: categoryColor('work') || catPalette[0], priorityTouched: false };
+      form.value = { title:'', description:'', category:'work', priority:'auto', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily', newCatColor: categoryColor('work') || catPalette[0] };
       dialogTitle.value = t('newTaskDialog');
       dialogConfirmText.value = t('createTask');
       showAddDialog.value = true;
@@ -3057,23 +3066,21 @@ const app = createApp({
       isEditing.value = true;
       editingTaskId.value = task.id;
       editingTaskDocId.value = task._id;
-      // If the stored priority already differs from what its due date would
-      // suggest, the user had deliberately customized it — keep it that way
-      // and don't let due-date changes silently overwrite it.
-      var prioTouched = !!(task.dueDate && task.priority &&
-        task.priority !== autoPriorityForDate(task.dueDate));
+      // A task remembers whether its priority was an explicit manual pick.
+      // If so, show that value (editable); otherwise show 'auto' so the due
+      // date keeps driving it.
+      var isManual = !!task.priorityManual;
       form.value = {
         title: task.title || '',
         description: task.description || '',
         category: task.category || 'work',
-        priority: task.priority || 'medium',
+        priority: isManual ? (task.priority || 'medium') : 'auto',
         dueDate: task.dueDate || '',
         dueTime: task.dueTime || '',
         checkInEnabled: !!task.checkInEnabled,
         checkInGoal: Number(task.checkInGoal) || 21,
         checkInMode: task.checkInMode || 'daily',
-        newCatColor: categoryColor(task.category || 'work') || catPalette[0],
-        priorityTouched: prioTouched
+        newCatColor: categoryColor(task.category || 'work') || catPalette[0]
       };
       dialogTitle.value = t('editTask');
       dialogConfirmText.value = t('saveChanges');
@@ -3093,11 +3100,19 @@ const app = createApp({
       // brand-new ones already got it from ensureCategoryRegistered).
       await applySelectedCategoryColor(resolvedCategory, form.value.newCatColor);
 
+      // 'auto' is a form-only sentinel: resolve it into a concrete priority
+      // (derived from the due date) before persisting.
+      var isManual = form.value.priority !== 'auto';
+      var effectivePriority = isManual
+        ? form.value.priority
+        : (autoPriorityForDate(normalizeDate(form.value.dueDate)) || 'medium');
+
       var taskData = {
         title: form.value.title.trim(),
         description: form.value.description.trim(),
         category: resolvedCategory,
-        priority: form.value.priority,
+        priority: effectivePriority,
+        priorityManual: isManual,
         dueDate: normalizeDate(form.value.dueDate),
         dueTime: normalizeTime(form.value.dueTime),
         checkInEnabled: !!form.value.checkInEnabled,
@@ -3268,7 +3283,7 @@ const app = createApp({
       // mutating dialog props during close animation causes a render loop.
       editingTaskId.value = null;
       editingTaskDocId.value = null;
-      form.value = { title:'', description:'', category:'work', priority:'medium', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily', newCatColor: categoryColor('work') || catPalette[0], priorityTouched: false };
+      form.value = { title:'', description:'', category:'work', priority:'auto', dueDate:'', dueTime:'', checkInEnabled: false, checkInGoal: 21, checkInMode: 'daily', newCatColor: categoryColor('work') || catPalette[0] };
     };
 
     // ==================== ALARM HANDLERS ====================
@@ -3597,14 +3612,6 @@ const app = createApp({
     watch(customCategories, function() {
       saveLocalCategories();
     }, { deep: true });
-    // Auto-default the priority from the chosen due date, unless the user
-    // deliberately picked a priority themselves (priorityTouched).
-    watch(function() { return form.value.dueDate; }, function(nv) {
-      if (form.value.priorityTouched) return;
-      var auto = autoPriorityForDate(nv);
-      if (auto) form.value.priority = auto;
-    });
-
     return {
       tasks, alarms, filter, searchQuery, categoryFilter, priorityFilter,
       showAddDialog, showAlarmDialog, showCalendarDialog, editingTaskId, dialogTitle, dialogConfirmText, notifyToast,

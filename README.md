@@ -32,7 +32,7 @@ Works immediately — data is stored in your browser's localStorage (local mode)
 - Switch between **中文 / English / 日本語**
 - Language preference saved automatically to localStorage
 - Toggle languages on both login and main screens
-- ~100 translation keys covering all UI text
+- Full UI localization for every screen and dialog
 
 ### User Authentication
 - Register / Login / Logout / Delete account
@@ -42,10 +42,15 @@ Works immediately — data is stored in your browser's localStorage (local mode)
 
 ### Task Management
 - Create, edit, and delete tasks
-- Categories: Work / Personal / Health / Finance / Other
-- Priorities: High / Medium / Low
+- Optional due date & time — undated tasks are clearly labeled and listed last in the **Upcoming** panel
+- Categories: 5 built-in (Work / Personal / Health / Finance / Other) plus **custom categories** with your own colors
+- Priorities: High / Medium / Low — or **Auto**, suggested from the due date (≤2 days → high, 3–5 days → medium, >5 days → low)
 - Search and multi-dimensional filtering
 - Mark tasks as complete
+- Smart sidebar panels:
+  - **Upcoming** — every pending task sorted by urgency (overdue → today → tomorrow → no due date)
+  - **Distribution** — per-category statistics with progress bars
+  - **Alarm reminders** — upcoming alarms with countdowns
 
 ### Check-in System
 - **Daily Check-in**: Once per day (perfect for running, reading, and other daily habits)
@@ -63,7 +68,7 @@ Works immediately — data is stored in your browser's localStorage (local mode)
 
 The app uses local storage by default. To sync across devices, deploy the `/api/*` serverless backend:
 
-1. Create a project on [Supabase](https://supabase.com) with 4 tables: `users`, `sessions`, `tasks`, `alarms`
+1. Create a project on [Supabase](https://supabase.com) with 5 tables: `users`, `sessions`, `tasks`, `alarms`, `categories`
 2. In [Vercel](https://vercel.com), add the environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 3. Deploy — registration/login and data sync automatically go through the `/api/*` endpoints
 
@@ -82,7 +87,7 @@ The app uses local storage by default. To sync across devices, deploy the `/api/
 ```
 TaskTap/
 ├── task-reminder.html    # Main app (single file, zero-config)
-├── api/                  # Vercel Serverless functions (auth / tasks / alarms)
+├── api/                  # Vercel Serverless functions (auth / tasks / alarms / categories)
 ├── vercel.json           # Vercel config
 ├── README.md             # English README (you are here)
 └── README_CN.md          # 中文 README

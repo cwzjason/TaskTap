@@ -632,6 +632,7 @@ body > .t-popup { z-index: 3000 !important; }
 .upcoming-due.overdue { color: var(--danger); }
 .upcoming-due.soon { color: var(--danger); }
 .upcoming-date { white-space: nowrap; }
+.upcoming-cat { padding: 1px 7px; border-radius: 20px; font-size: 10.5px; white-space: nowrap; display: inline-block; flex-shrink: 0; }
 .panel-count {
   font-size: 12px;
   font-weight: 600;
@@ -1181,6 +1182,7 @@ body::before {
                       :class="{ overdue: dueDiff(task) < 0, soon: dueDiff(task) >= 0 && dueDiff(task) <= 2 }"
                     >{{ dueLabel(task) }}</span>
                     <span class="upcoming-date" v-if="task.dueDate">📅 {{ task.dueDate }} {{ task.dueTime || '' }}</span>
+                    <span :class="'upcoming-cat ' + catTagClass(task.category)" :style="catTagStyle(task.category)">{{ categoryLabel(task.category) }}</span>
                   </div>
                 </div>
                 <t-button

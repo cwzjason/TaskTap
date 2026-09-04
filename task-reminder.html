@@ -367,6 +367,8 @@ body > .t-popup { z-index: 3000 !important; }
   transition: background .15s;
 }
 .task-group-header:hover { background: var(--td-bg-color-container-hover); }
+.task-group-header.dragging { opacity: 0.5; background: var(--td-brand-color-light); }
+.task-group-header.drag-over { border-top: 2px solid var(--td-brand-color); }
 .task-group.open .task-group-header { border-bottom: 1px solid var(--border-light); }
 .group-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .group-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -667,6 +669,13 @@ body > .t-popup { z-index: 3000 !important; }
 .cat-tag.finance  { background: #FFFBEB; color: #D97706; }
 .cat-tag.other    { background: #F8FAFC; color: #64748B; }
 .cat-tag.misc     { background: #F1F5F9; color: #475569; }
+
+/* Category option row with delete button inside select dropdown */
+.cat-option-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+.cat-option-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-option-delete { opacity: 0.55; transition: opacity .15s; }
+.cat-option-row:hover .cat-option-delete,
+.t-select__option:hover .cat-option-delete { opacity: 1; }
 
 /* ===== Category Manager Dialog ===== */
 .cat-mgr-row    { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -1025,7 +1034,16 @@ body::before {
               class="task-group"
               :class="{ open: !isGroupCollapsed(group.key) }"
             >
-              <div class="task-group-header" @click="toggleGroupCollapsed(group.key)">
+              <div
+                class="task-group-header"
+                :class="{ dragging: draggingGroupKey === group.key, 'drag-over': dragOverGroupKey === group.key }"
+                draggable="true"
+                @click="toggleGroupCollapsed(group.key)"
+                @dragstart="onGroupDragStart($event, group)"
+                @dragover.prevent="onGroupDragOver($event, group)"
+                @drop="onGroupDrop($event, group)"
+                @dragend="onGroupDragEnd"
+              >
                 <span class="group-dot" :style="group.dotStyle"></span>
                 <span class="group-name">{{ group.label }}</span>
                 <span class="group-count">{{ group.items.length }}</span>
@@ -1278,11 +1296,24 @@ body::before {
           v-model="form.category"
           :placeholder="t('selectCategory')"
           :popup-props="popupBody"
-          :options="categoryOptions"
           filterable
           creatable
           @change="onTaskCategoryChange"
-        />
+        >
+          <t-option v-for="c in categoryList" :key="c.key" :value="c.key" :label="c.label">
+            <div class="cat-option-row">
+              <span class="cat-option-label">{{ c.label }}</span>
+              <t-button
+                v-if="c.custom"
+                theme="danger"
+                variant="text"
+                size="small"
+                class="cat-option-delete"
+                @click.stop="deleteCategory(c.key)"
+              >{{ t('delete') }}</t-button>
+            </div>
+          </t-option>
+        </t-select>
         <div class="field-hint">{{ t('categoryHint') }}</div>
       </div>
       <div class="form-item">
@@ -1673,6 +1704,7 @@ const LANG_PACKS = {
     categoryAdded: '分类已添加',
     categoryUpdated: '分类已更新',
     categoryDeleted: '分类已删除',
+    categoryHasTasks: '该分类下还有 {count} 个任务，请先移动或删除后再删除分类',
     tasksUnit: '个任务',
     noCustomCategories: '暂无自定义分类，输入名称并点「添加分类」即可创建',
     // Priorities
@@ -1857,6 +1889,7 @@ const LANG_PACKS = {
     categoryAdded: 'Category added',
     categoryUpdated: 'Category updated',
     categoryDeleted: 'Category deleted',
+    categoryHasTasks: '{count} task(s) still in this category. Please move or delete them first.',
     tasksUnit: 'tasks',
     noCustomCategories: 'No custom categories yet. Type a name and click "Add Category".',
     pri_auto: '🤖 Auto (by date)',
@@ -2037,6 +2070,7 @@ const LANG_PACKS = {
     categoryAdded: 'カテゴリを追加しました',
     categoryUpdated: 'カテゴリを更新しました',
     categoryDeleted: 'カテゴリを削除しました',
+    categoryHasTasks: 'このカテゴリには {count} 件のタスクがあります。先に移動または削除してください。',
     tasksUnit: '件',
     noCustomCategories: 'カスタムカテゴリはまだありません。名前を入力して「追加」を押してください',
     pri_auto: '🤖 自動（日付連動）',
@@ -2102,6 +2136,8 @@ const app = createApp({
     // 自定义分类的颜色直接存在 customCategories 里，不需要走这里。
     const catColorOverrides = ref(loadCatColorOverrides());
     const BUILTIN_CATEGORY_KEYS = ['work', 'personal', 'health', 'finance', 'other'];
+    // 任务列表分组的拖拽排序顺序（key 数组）
+    const categoryOrder = ref(loadCategoryOrder());
     const filter = ref('all');
     const searchQuery = ref('');
     const categoryFilter = ref('');
@@ -2116,6 +2152,8 @@ const app = createApp({
     const editingTaskId = ref(null);
     const editingTaskDocId = ref(null);
     const notifyToast = ref({ show: false, title: '', desc: '', closing: false });
+    const draggingGroupKey = ref('');
+    const dragOverGroupKey = ref('');
     const isLoading = ref(true);
     const loadingText = ref(t('loadingConnect'));
     const syncStatus = ref('connecting'); // connecting | connected | offline | local
@@ -2297,7 +2335,8 @@ const app = createApp({
     const popupBody = { attach: 'body' };
     const autosizeConfig = { minRows: 2, maxRows: 4 };
 
-    // All categories — built-in first, then user custom ones (merged view)
+    // All categories — order follows categoryOrder (drag-sortable), with
+    // built-ins first when no explicit order has been saved yet.
     const categoryList = computed(function() {
       var builtin = [
         { key: 'work',     label: t('cat_work'),     color: categoryColor('work') },
@@ -2309,7 +2348,16 @@ const app = createApp({
       var custom = customCategories.value.map(function(c) {
         return { key: c.name, label: c.name, color: categoryColor(c.name), custom: true };
       });
-      return builtin.concat(custom);
+      var all = builtin.concat(custom);
+      var orderArr = categoryOrder.value;
+      all.sort(function(a, b) {
+        var ia = orderArr.indexOf(a.key);
+        var ib = orderArr.indexOf(b.key);
+        if (ia === -1) ia = 9999;
+        if (ib === -1) ib = 9999;
+        return ia - ib;
+      });
+      return all;
     });
     const builtinCategoryView = computed(function() {
       return categoryList.value.filter(function(c) { return !c.custom; });
@@ -2730,6 +2778,18 @@ const app = createApp({
     function saveLocalCategories() {
       try {
         localStorage.setItem('tr_categories', JSON.stringify(customCategories.value));
+      } catch(e) {}
+    }
+    function loadCategoryOrder() {
+      try {
+        var raw = localStorage.getItem('tr_category_order');
+        var arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch(e) { return []; }
+    }
+    function saveCategoryOrder(order) {
+      try {
+        localStorage.setItem('tr_category_order', JSON.stringify(order || []));
       } catch(e) {}
     }
     function loadCatColorOverrides() {
@@ -3478,8 +3538,64 @@ const app = createApp({
       alarms.value.sort(function(a, b) { return (a.date+a.time).localeCompare(b.date+b.time); });
     }
 
+    // ==================== CATEGORY DRAG & DELETE ====================
+    function deleteCategory(key) {
+      if (!key) return;
+      var count = tasks.value.filter(function(t) { return (t.category || '') === key; }).length;
+      if (count > 0) {
+        notify(t('categoryHasTasks').replace('{count}', count));
+        return;
+      }
+      var idx = customCategories.value.findIndex(function(c) { return c.name === key; });
+      if (idx === -1) return;
+      customCategories.value.splice(idx, 1);
+      saveLocalCategories();
+      var order = categoryOrder.value.filter(function(k) { return k !== key; });
+      categoryOrder.value = order;
+      saveCategoryOrder(order);
+      if (form.category === key) form.category = 'other';
+      notify(t('categoryDeleted'));
+    }
+
+    function onGroupDragStart(e, group) {
+      draggingGroupKey.value = group.key;
+      e.dataTransfer.setData('text/category-key', group.key);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onGroupDragOver(e, group) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      dragOverGroupKey.value = group.key;
+    }
+    function onGroupDrop(e, targetGroup) {
+      e.preventDefault();
+      var sourceKey = e.dataTransfer.getData('text/category-key');
+      dragOverGroupKey.value = '';
+      if (!sourceKey || sourceKey === targetGroup.key) return;
+      var allKeys = categoryList.value.map(function(c) { return c.key; });
+      var order = categoryOrder.value.slice().filter(function(k) { return allKeys.indexOf(k) !== -1; });
+      allKeys.forEach(function(k) { if (order.indexOf(k) === -1) order.push(k); });
+      var fromIndex = order.indexOf(sourceKey);
+      var toIndex = order.indexOf(targetGroup.key);
+      if (fromIndex === -1 || toIndex === -1) return;
+      order.splice(fromIndex, 1);
+      order.splice(toIndex, 0, sourceKey);
+      categoryOrder.value = order;
+      saveCategoryOrder(order);
+    }
+    function onGroupDragEnd() {
+      draggingGroupKey.value = '';
+      dragOverGroupKey.value = '';
+    }
+
     // ==================== NOTIFICATION ====================
     let notifyTimeout = null;
+
+    const notify = function(title, desc) {
+      notifyToast.value = { show: true, title: title || '', desc: desc || '', closing: false };
+      if (notifyTimeout) clearTimeout(notifyTimeout);
+      notifyTimeout = setTimeout(closeNotifyToast, 3000);
+    };
 
     const triggerNotification = function(alarm) {
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -3724,11 +3840,14 @@ const app = createApp({
       hasActiveFilter, filteredTasks, categoryStats,
       upcomingTasks, dueDiff, dueLabel, displayPriority,
       taskGroups, isGroupCollapsed, toggleGroupCollapsed,
-      onTaskCategoryChange,
+      onTaskCategoryChange, deleteCategory,
+      draggingGroupKey, dragOverGroupKey,
+      onGroupDragStart, onGroupDragOver, onGroupDrop, onGroupDragEnd,
       normalizeDate, normalizeTime, fmtDateString, todayDisplay,
       categoryLabel, priorityLabel, priorityTheme,
       openAddDialog, openEditDialog, handleTaskConfirm,
       deleteTask, toggleTask, doCheckIn, undoCheckIn, openCalendar, resetForm,
+      notify,
       openAlarmDialog, handleAlarmConfirm, dismissAlarm, resetAlarmForm,
       closeNotifyToast, connMode, showDebug, debugLog,
       popupBody, autosizeConfig,

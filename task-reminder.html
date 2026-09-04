@@ -673,7 +673,25 @@ body > .t-popup { z-index: 3000 !important; }
 /* Category option row with delete button inside select dropdown */
 .cat-option-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
 .cat-option-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cat-option-delete { opacity: 0.55; transition: opacity .15s; }
+.cat-option-delete {
+  opacity: 0.55;
+  transition: opacity .15s, background .15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--td-error-color, #d54941);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cat-option-delete:hover {
+  opacity: 1;
+  background: var(--td-error-color-hover, rgba(213, 73, 65, 0.1));
+}
 .cat-option-row:hover .cat-option-delete,
 .t-select__option:hover .cat-option-delete { opacity: 1; }
 
@@ -1303,14 +1321,12 @@ body::before {
           <t-option v-for="c in categoryList" :key="c.key" :value="c.key" :label="c.label">
             <div class="cat-option-row">
               <span class="cat-option-label">{{ c.label }}</span>
-              <t-button
+              <span
                 v-if="c.custom"
-                theme="danger"
-                variant="text"
-                size="small"
                 class="cat-option-delete"
+                title="删除该分类"
                 @click.stop="deleteCategory(c.key)"
-              >{{ t('delete') }}</t-button>
+              >×</span>
             </div>
           </t-option>
         </t-select>
